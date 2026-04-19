@@ -83,6 +83,7 @@ async def stt(audio: UploadFile = File(...)):
         # language="ne" => force Nepali (your request)
         # beam_size=8   => better quality vs beam_size=1, at cost of speed
         print(f"[STT] Transcribing file {tmp_path} ...", file=sys.stderr)
+        # This wisper.model.transcribe is the one that runs locally. this is what is changed if api is used instead of local
         segments, info = whisper_model.transcribe(
             tmp_path,
             language="ne",

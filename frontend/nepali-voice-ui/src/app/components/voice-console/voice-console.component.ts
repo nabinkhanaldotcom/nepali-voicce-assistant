@@ -1,4 +1,4 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VoiceService, SttResponse } from '../../services/voice.service';
@@ -26,7 +26,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   recordedAudioUrl: string | null = null;  // original recording
   replyAudioUrl: string | null = null;     // AI reply audio
 
-  constructor(private voiceService: VoiceService) {}
+  constructor(private voiceService: VoiceService, private ngZone: NgZone) {}
 
   // ---- RECORDING ----
 
@@ -49,16 +49,30 @@ export class VoiceConsoleComponent implements OnDestroy {
           }
         };
 
+        // this.mediaRecorder.onstop = () => {
+        //   const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        //   this.lastRecordedBlob = audioBlob;
+
+        //   // Create URL for original recording preview
+        //   if (this.recordedAudioUrl) {
+        //     URL.revokeObjectURL(this.recordedAudioUrl);
+        //   }
+        //   this.recordedAudioUrl = URL.createObjectURL(audioBlob);
+        // };
+
         this.mediaRecorder.onstop = () => {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-          this.lastRecordedBlob = audioBlob;
-
-          // Create URL for original recording preview
-          if (this.recordedAudioUrl) {
-            URL.revokeObjectURL(this.recordedAudioUrl);
-          }
-          this.recordedAudioUrl = URL.createObjectURL(audioBlob);
+        
+          this.ngZone.run(() => {  // 👈 wrap state changes in zone.run
+            this.lastRecordedBlob = audioBlob;
+        
+            if (this.recordedAudioUrl) {
+              URL.revokeObjectURL(this.recordedAudioUrl);
+            }
+            this.recordedAudioUrl = URL.createObjectURL(audioBlob);
+          });
         };
+        
 
         this.mediaRecorder.start();
         this.isRecording = true;
