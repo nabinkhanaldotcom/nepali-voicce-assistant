@@ -6,7 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="e56f5e69-d648-4c22-9381-72516aeaa05a" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/mainone.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/mainone.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/mainone.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/stagingFiles/mainone.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,11 +44,19 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "ai.playground.ignore.import.keys.banner.in.settings": "true",
     "git-widget-placeholder": "texttospeechAPI",
-    "last_opened_file_path": "/Users/mario/myFolder/voice-clone-app/nepali-voicce-assistant/backend_api",
+    "last_opened_file_path": "/Users/mario/myFolder/voice-clone-app/nepali-voicce-assistant/backend_api/app/routes",
     "nodejs_package_manager_path": "npm",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/app/routes" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/app/stagingFiles" />
+    </key>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -65,7 +74,7 @@
       <updated>1767649778058</updated>
       <workItem from="1776564029890" duration="12520000" />
       <workItem from="1777760663790" duration="3350000" />
-      <workItem from="1778349642351" duration="2020000" />
+      <workItem from="1778349642351" duration="7045000" />
     </task>
     <servers />
   </component>
