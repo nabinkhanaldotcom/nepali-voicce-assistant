@@ -21,10 +21,6 @@ def health():
 
 @app.post("/echo")
 def echo(data: EchoRequest):
-    messages
-    print("original_message"  data.message,
-        "uppercase_message": data.message.upper(),
-        "length": len(data.message)
     return {
         "original_message": data.message,
         "uppercase_message": data.message.upper(),
