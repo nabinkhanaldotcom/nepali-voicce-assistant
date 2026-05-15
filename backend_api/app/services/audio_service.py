@@ -11,14 +11,39 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".webm", ".ogg"}
 
-MODEL_SIZE = "small"
+# ----------Option 1-----------
+# MODEL_SIZE = "small"
+# DEVICE = "cpu"
+# COMPUTE_TYPE = "int8"
+# TRANSCRIPTION_LANGUAGE = "ne"
+
+
+# ----------Option 2-----------
+# for higher computing power
+# MODEL_SIZE = "large-v3"
+#  if have nvdia graphic card then
+# DEVICE = "cuda"
+# COMPUTE_TYPE = "float32" -->(Highest precision for CPU, but slower than int8)
+
+# ----------Option 3-----------
+# For 2018 mac
+# The best model your 16GB RAM can comfortably handle without crashing
+MODEL_SIZE = "medium"
+
+# Forces the Intel CPU to use all 6 cores efficiently
 DEVICE = "cpu"
+CPU_THREADS = 6
+
+# High-precision math for CPU (much more accurate than int8)
+# COMPUTE_TYPE = "float32"
 COMPUTE_TYPE = "int8"
+
+TRANSCRIPTION_LANGUAGE = "ne"
 
 # Set this to "ne" when you want to force Nepali transcription.
 # Set it to None when you want automatic language detection.
 # TRANSCRIPTION_LANGUAGE = "ne"
-TRANSCRIPTION_LANGUAGE = "None"
+# TRANSCRIPTION_LANGUAGE = None
 
 _whisper_model = None
 
@@ -27,10 +52,21 @@ def get_whisper_model():
     global _whisper_model
 
     if _whisper_model is None:
+        # ----------Option 1-----------
+        # _whisper_model = WhisperModel(
+        #     MODEL_SIZE,
+        #     device=DEVICE,
+        #     compute_type=COMPUTE_TYPE
+        # )
+        # ----------Option 2-----------
+        # this is for mac 2018
+        # To apply these hardware limits, pass cpu_threads into your WhisperModel initialization:
+
         _whisper_model = WhisperModel(
             MODEL_SIZE,
             device=DEVICE,
-            compute_type=COMPUTE_TYPE
+            compute_type=COMPUTE_TYPE,
+            cpu_threads = CPU_THREADS
         )
 
     return _whisper_model
@@ -67,7 +103,8 @@ def transcribe_saved_audio(saved_path: str):
     model = get_whisper_model()
     segments, info = model.transcribe(
         saved_path,
-        beam_size=5
+        beam_size=5,
+        language="ne"
     )
 
     transcript_parts = []

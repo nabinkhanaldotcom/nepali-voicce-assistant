@@ -5,16 +5,31 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e56f5e69-d648-4c22-9381-72516aeaa05a" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/oldMain.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/oldMain.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/routes/audio.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routes/audio.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/services/audio_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/audio_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/stt_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/stt_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/tts_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/tts_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/stagingFiles/mainone.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/stagingFiles/mainone.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/stagingFiles/receivingAudio.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/stagingFiles/receivingAudio.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/phrase_clips/teshoGareKashoHola1.m4a" beforeDir="false" afterPath="$PROJECT_DIR$/phrase_clips/teshoGareKashoHola1.m4a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/09ac4882-43b1-42db-a4d6-cdd842dfbb4a.webm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/0cecfd56-f3d4-47da-8adb-45770e95c918.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/0f47c3f1-8148-48f9-91aa-d90bc20cc7bf.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/17f37c09-fb4a-4efb-831d-5e588b4120a4.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/2043f225-7d3c-4bd6-b33c-c64447ad3d15.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/4495b5cd-f918-4f4b-865f-41aaaeaa4de2.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/4cd7ad94-21ff-4551-9ffe-1d3858840c77.webm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/648efc47-dd42-4885-a7f7-77d1eafdc6d5.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/6b31d0f4-e54f-4834-8d1a-e391f570dbdc.m4a" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/9f60c72a-1aec-4e63-ab6b-115decf8a4f1.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/b29f18c0-72fd-42f7-82b8-0dd9eaf8d3bc.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/b63a90d3-8dc7-40f5-a0c0-03077e3b96b8.webm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/ba74ffc5-2b14-4735-898b-2795b3e5b685.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/c50854c1-3e67-4f9f-a583-48d7f5aaeb69.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/d31f964c-b34b-4286-abec-7ba1369e8ad9.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/e4e7785b-d79a-4c0d-b2aa-d2a6c088d974.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/uploads/ef189762-6b75-4166-9d67-65f886ad07a6.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.html" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.scss" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.scss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/services/voice.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/nepali-voice-ui/src/app/services/voice.service.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -97,6 +112,11 @@
           <url>file://$PROJECT_DIR$/app/services/phrase_service.py</url>
           <line>9</line>
           <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/app/services/audio_service.py</url>
+          <line>64</line>
+          <option name="timeStamp" value="3" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
