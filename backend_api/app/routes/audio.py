@@ -1,5 +1,9 @@
 from fastapi import APIRouter, UploadFile, File
-from app.services.audio_service import save_uploaded_audio, fake_transcribe_audio
+from app.services.audio_service import (
+    save_uploaded_audio,
+    transcribe_uploaded_audio,
+    transcribe_and_match_audio
+)
 
 router = APIRouter()
 
@@ -16,5 +20,11 @@ async def upload_audio(file: UploadFile = File(...)):
 
 @router.post("/transcribe-audio")
 async def transcribe_audio(file: UploadFile = File(...)):
-    result = await fake_transcribe_audio(file)
+    result = await transcribe_uploaded_audio(file)
+    return result
+
+
+@router.post("/transcribe-and-match")
+async def transcribe_and_match(file: UploadFile = File(...)):
+    result = await transcribe_and_match_audio(file)
     return result

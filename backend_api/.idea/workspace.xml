@@ -5,9 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e56f5e69-d648-4c22-9381-72516aeaa05a" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/mainone.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/stagingFiles/mainone.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/oldMain.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/oldMain.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/routes/audio.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/routes/audio.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/audio_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/audio_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/stt_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/stt_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/tts_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/tts_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/stagingFiles/mainone.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/stagingFiles/mainone.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/stagingFiles/receivingAudio.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/stagingFiles/receivingAudio.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,19 +45,22 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.audio.executor": "Debug",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "ai.playground.ignore.import.keys.banner.in.settings": "true",
     "git-widget-placeholder": "texttospeechAPI",
-    "last_opened_file_path": "/Users/mario/myFolder/voice-clone-app/nepali-voicce-assistant/backend_api/app/routes",
+    "last_opened_file_path": "/Users/mario/myFolder/voice-clone-app/nepali-voicce-assistant/backend_api/phrase_clips",
     "nodejs_package_manager_path": "npm",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/phrase_clips" />
+      <recent name="$PROJECT_DIR$/app/uploads" />
       <recent name="$PROJECT_DIR$/app/routes" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
@@ -60,8 +70,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.29346.142" />
-        <option value="bundled-python-sdk-f2b7a9f6281b-6e1f45a539f7-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.29346.142" />
+        <option value="bundled-python-sdk-dfff61a61320-9cdd278e9d02-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-251.25410.159" />
       </set>
     </attachedChunks>
   </component>
@@ -74,11 +83,25 @@
       <updated>1767649778058</updated>
       <workItem from="1776564029890" duration="12520000" />
       <workItem from="1777760663790" duration="3350000" />
-      <workItem from="1778349642351" duration="7045000" />
+      <workItem from="1778349642351" duration="16048000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/app/services/phrase_service.py</url>
+          <line>9</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/backend_api$audio.coverage" NAME="audio Coverage Results" MODIFIED="1778451262617" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app/routes" />
   </component>
 </project>
