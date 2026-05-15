@@ -2,39 +2,66 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-export interface SttResponse {
-  text: string;
+export interface MatchedPhrase {
+  id: string;
+  phrase_text: string;
+  clip_filename: string;
+}
+
+export interface PhraseMatchResult {
+  matched: boolean;
+  matched_phrase: MatchedPhrase | null;
+  score: number;
+  clip_exists: boolean;
+  clip_url: string | null;
+}
+
+export interface FileInfo {
+  original_filename: string;
+  saved_filename: string;
+  content_type: string | null;
+  size_in_bytes: number;
+  saved_path: string;
+}
+
+export interface TranscribeAndMatchResponse {
+  message: string;
+  transcript: string;
+  detected_language: string;
+  language_probability: number;
+  language_mode: string;
+  phrase_match: PhraseMatchResult;
+  file_info: FileInfo;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class VoiceService {
-
-  // Just hardcode backend URL for now.
-  // You can later move this to a config if you want.
   private baseUrl = 'http://localhost:8000';
 
   constructor(private http: HttpClient) {}
 
-  /**
-   * Send recorded audio to STT endpoint.
-   * Backend should expect form-data field "audio".
-   */
-  stt(audioBlob: Blob): Observable<SttResponse> {
+  transcribeAndMatch(audioFile: Blob, fileName: string): Observable<TranscribeAndMatchResponse> {
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.webm');
 
-    return this.http.post<SttResponse>(`${this.baseUrl}/stt`, formData);
+    // IMPORTANT:
+    // your new FastAPI endpoint expects the field name "file"
+    // formData.append('file', audioBlob, 'recording.webm');
+
+    formData.append('file', audioFile, fileName);
+
+    return this.http.post<TranscribeAndMatchResponse>(
+      `${this.baseUrl}/transcribe-and-match`,
+      formData
+    );
   }
 
-  /**
-   * Send text to TTS endpoint and get an audio Blob back.
-   */
-  tts(text: string): Observable<Blob> {
-    return this.http.post(`${this.baseUrl}/tts`, { text }, {
-      responseType: 'blob'  // we expect raw audio bytes
-    });
+  getFullClipUrl(relativeClipUrl: string | null): string | null {
+    if (!relativeClipUrl) {
+      return null;
+    }
+
+    return `${this.baseUrl}${relativeClipUrl}`;
   }
 }
-

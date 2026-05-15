@@ -1,7 +1,10 @@
-import { Component, OnDestroy, NgZone } from '@angular/core';
+import { Component, NgZone, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { VoiceService, SttResponse } from '../../services/voice.service';
+import {
+  VoiceService,
+  TranscribeAndMatchResponse
+} from '../../services/voice.service';
 
 @Component({
   selector: 'app-voice-console',
@@ -11,30 +14,41 @@ import { VoiceService, SttResponse } from '../../services/voice.service';
   styleUrl: './voice-console.component.scss'
 })
 export class VoiceConsoleComponent implements OnDestroy {
-
   isRecording = false;
-  isSttLoading = false;
-  isTtsLoading = false;
+  isProcessing = false;
 
   recognizedText = '';
   errorMessage = '';
 
+  detectedLanguage = '';
+  languageProbability: number | null = null;
+  languageMode = '';
+
+  matchFound = false;
+  matchScore: number | null = null;
+  matchedPhraseText = '';
+  matchedClipUrl: string | null = null;
+  matchedClipExists = false;
+
+  selectedInputType: 'recording' | 'file' | null = null;
+  selectedAudioName = '';
+
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
-  lastRecordedBlob: Blob | null = null;
 
-  recordedAudioUrl: string | null = null;  // original recording
-  replyAudioUrl: string | null = null;     // AI reply audio
+  lastAudioBlob: Blob | null = null;
+  recordedAudioUrl: string | null = null;
 
-  constructor(private voiceService: VoiceService, private ngZone: NgZone) {}
-
-  // ---- RECORDING ----
+  constructor(
+    private voiceService: VoiceService,
+    private ngZone: NgZone
+  ) {}
 
   startRecording(): void {
     this.errorMessage = '';
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      this.errorMessage = 'getUserMedia is not supported in this browser.';
+      this.errorMessage = 'This browser does not support microphone recording.';
       return;
     }
 
@@ -49,37 +63,25 @@ export class VoiceConsoleComponent implements OnDestroy {
           }
         };
 
-        // this.mediaRecorder.onstop = () => {
-        //   const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-        //   this.lastRecordedBlob = audioBlob;
-
-        //   // Create URL for original recording preview
-        //   if (this.recordedAudioUrl) {
-        //     URL.revokeObjectURL(this.recordedAudioUrl);
-        //   }
-        //   this.recordedAudioUrl = URL.createObjectURL(audioBlob);
-        // };
-
         this.mediaRecorder.onstop = () => {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-        
-          this.ngZone.run(() => {  // 👈 wrap state changes in zone.run
-            this.lastRecordedBlob = audioBlob;
-        
-            if (this.recordedAudioUrl) {
-              URL.revokeObjectURL(this.recordedAudioUrl);
-            }
-            this.recordedAudioUrl = URL.createObjectURL(audioBlob);
+
+          this.ngZone.run(() => {
+            this.setCurrentAudio(
+              audioBlob,
+              URL.createObjectURL(audioBlob),
+              'recording',
+              'recording.webm'
+            );
           });
         };
-        
 
         this.mediaRecorder.start();
         this.isRecording = true;
       })
       .catch((err: unknown) => {
-        console.error('Error accessing microphone', err);
-        this.errorMessage = 'Could not access microphone. Check permissions.';
+        console.error('Microphone access error:', err);
+        this.errorMessage = 'Could not access microphone. Please allow microphone permission.';
       });
   }
 
@@ -91,72 +93,114 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
   }
 
-  // ---- STT (Speech to Text) ----
-
-  sendToStt(): void {
+  onFileSelected(event: Event): void {
     this.errorMessage = '';
 
-    if (!this.lastRecordedBlob) {
-      this.errorMessage = 'No recording available. Please record first.';
+    const input = event.target as HTMLInputElement;
+
+    if (!input.files || input.files.length === 0) {
       return;
     }
 
-    this.isSttLoading = true;
-    this.voiceService.stt(this.lastRecordedBlob).subscribe({
-      next: (res: SttResponse) => {
-        this.recognizedText = res.text || '';
-        this.isSttLoading = false;
+    const selectedFile = input.files[0];
+
+    if (!selectedFile.type.startsWith('audio/')) {
+      this.errorMessage = 'Please choose a valid audio file.';
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(selectedFile);
+
+    this.setCurrentAudio(
+      selectedFile,
+      previewUrl,
+      'file',
+      selectedFile.name
+    );
+  }
+
+  sendToBackend(): void {
+    this.errorMessage = '';
+
+    if (!this.lastAudioBlob) {
+      this.errorMessage = 'No audio available. Please record or choose a file first.';
+      return;
+    }
+
+    if (!this.selectedAudioName) {
+      this.errorMessage = 'Audio file name is missing.';
+      return;
+    }
+
+    this.isProcessing = true;
+
+    this.voiceService.transcribeAndMatch(this.lastAudioBlob, this.selectedAudioName).subscribe({
+      next: (res: TranscribeAndMatchResponse) => {
+        this.recognizedText = res.transcript || '';
+        this.detectedLanguage = res.detected_language || '';
+        this.languageProbability = res.language_probability ?? null;
+        this.languageMode = res.language_mode || '';
+
+        this.matchFound = res.phrase_match?.matched ?? false;
+        this.matchScore = res.phrase_match?.score ?? null;
+        this.matchedPhraseText = res.phrase_match?.matched_phrase?.phrase_text ?? '';
+        this.matchedClipExists = res.phrase_match?.clip_exists ?? false;
+        this.matchedClipUrl = this.voiceService.getFullClipUrl(res.phrase_match?.clip_url ?? null);
+
+        this.isProcessing = false;
       },
       error: (err: unknown) => {
-        console.error('STT error', err);
-        this.errorMessage = 'Error during speech-to-text.';
-        this.isSttLoading = false;
+        console.error('Backend error:', err);
+        this.errorMessage = 'Error sending audio to the backend.';
+        this.isProcessing = false;
       }
     });
   }
 
-  // ---- TTS (Text to Speech) ----
-
-  speakRecognizedText(): void {
-    this.errorMessage = '';
-
-    const text = this.recognizedText?.trim();
-    if (!text) {
-      this.errorMessage = 'No text to speak. Use STT or type something.';
+  playMatchedClip(): void {
+    if (!this.matchedClipUrl) {
+      this.errorMessage = 'No matched clip is available.';
       return;
     }
 
-    this.isTtsLoading = true;
-    this.voiceService.tts(text).subscribe({
-      next: (audioBlob: Blob) => {
-        if (this.replyAudioUrl) {
-          URL.revokeObjectURL(this.replyAudioUrl);
-        }
+    const audio = new Audio(this.matchedClipUrl);
 
-        this.replyAudioUrl = URL.createObjectURL(audioBlob);
-        this.isTtsLoading = false;
-
-        // Auto-play the reply audio
-        const audio = new Audio(this.replyAudioUrl);
-        audio.play().catch((err: unknown) => {
-          console.warn('Auto-play blocked:', err);
-        });
-      },
-      error: (err: unknown) => {
-        console.error('TTS error', err);
-        this.errorMessage = 'Error during text-to-speech.';
-        this.isTtsLoading = false;
-      }
+    audio.play().catch((err: unknown) => {
+      console.warn('Audio play error:', err);
+      this.errorMessage = 'Could not play the matched clip.';
     });
   }
 
-  // Cleanup URLs on destroy
-  ngOnDestroy(): void {
+  clearSelectedAudio(): void {
+    this.lastAudioBlob = null;
+    this.selectedInputType = null;
+    this.selectedAudioName = '';
+
+    if (this.recordedAudioUrl) {
+      URL.revokeObjectURL(this.recordedAudioUrl);
+      this.recordedAudioUrl = null;
+    }
+  }
+
+  private setCurrentAudio(
+    audioBlob: Blob,
+    previewUrl: string,
+    inputType: 'recording' | 'file',
+    fileName: string
+  ): void {
     if (this.recordedAudioUrl) {
       URL.revokeObjectURL(this.recordedAudioUrl);
     }
-    if (this.replyAudioUrl) {
-      URL.revokeObjectURL(this.replyAudioUrl);
+
+    this.lastAudioBlob = audioBlob;
+    this.recordedAudioUrl = previewUrl;
+    this.selectedInputType = inputType;
+    this.selectedAudioName = fileName;
+  }
+
+  ngOnDestroy(): void {
+    if (this.recordedAudioUrl) {
+      URL.revokeObjectURL(this.recordedAudioUrl);
     }
   }
 }

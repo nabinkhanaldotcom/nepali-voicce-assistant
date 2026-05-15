@@ -1,75 +1,91 @@
 <div class="voice-console">
+  <h2>Nepali Voice Matcher</h2>
+  <p>
+    Record audio in the browser or choose an audio file from your computer,
+    then send it to the Python backend for transcription and phrase matching.
+  </p>
 
-    <h2>Nepali Voice Assistant (Local Demo)</h2>
-  
-    <!-- Recording -->
-    <section class="section">
-      <h3>1. Record</h3>
-  
-      <button
-        (click)="startRecording()"
-        [disabled]="isRecording">
-        🎙️ Start Recording
+  <div class="section">
+    <h3>1. Choose Audio Source</h3>
+
+    <div class="button-row">
+      <button type="button" (click)="startRecording()" [disabled]="isRecording">
+        Start Recording
       </button>
-  
-      <button
-        (click)="stopRecording()"
-        [disabled]="!isRecording">
-        ⏹️ Stop Recording
+
+      <button type="button" (click)="stopRecording()" [disabled]="!isRecording">
+        Stop Recording
       </button>
-  
-      <span class="status" *ngIf="isRecording">Recording...</span>
-  
-      <div class="audio-preview" *ngIf="recordedAudioUrl">
-        <p>Original recording:</p>
-        <audio [src]="recordedAudioUrl" controls></audio>
-      </div>
-    </section>
-  
-    <!-- STT -->
-    <section class="section">
-      <h3>2. Speech → Text (STT)</h3>
-  
-      <button
-        (click)="sendToStt()"
-        [disabled]="isSttLoading || !lastRecordedBlob">
-        🔁 Send Recording to STT
-      </button>
-  
-      <span class="status" *ngIf="isSttLoading">Transcribing...</span>
-  
-      <div class="text-output">
-        <label for="recognizedText">Recognized / Editable Text:</label>
-        <textarea
-          id="recognizedText"
-          rows="5"
-          [(ngModel)]="recognizedText">
-        </textarea>
-      </div>
-    </section>
-  
-    <!-- TTS -->
-    <section class="section">
-      <h3>3. Text → Speech (TTS)</h3>
-  
-      <button
-        (click)="speakRecognizedText()"
-        [disabled]="isTtsLoading || !recognizedText.trim()">
-        🔊 Speak Text
-      </button>
-  
-      <span class="status" *ngIf="isTtsLoading">Generating speech...</span>
-  
-      <div class="audio-preview" *ngIf="replyAudioUrl">
-        <p>AI reply audio:</p>
-        <audio [src]="replyAudioUrl" controls></audio>
-      </div>
-    </section>
-  
-    <!-- Errors -->
-    <div class="error" *ngIf="errorMessage">
-      ⚠️ {{ errorMessage }}
     </div>
-  
+
+    <p class="status" *ngIf="isRecording">Recording...</p>
+
+    <div class="file-picker">
+      <label for="audioFile"><strong>Or choose an audio file:</strong></label>
+      <input
+        id="audioFile"
+        type="file"
+        accept="audio/*"
+        (change)="onFileSelected($event)">
+    </div>
+
+    <div *ngIf="selectedInputType">
+      <p><strong>Selected source:</strong> {{ selectedInputType }}</p>
+      <p><strong>Selected audio name:</strong> {{ selectedAudioName }}</p>
+    </div>
+
+    <div class="audio-preview" *ngIf="recordedAudioUrl">
+      <p><strong>Audio preview:</strong></p>
+      <audio [src]="recordedAudioUrl" controls></audio>
+    </div>
+
+    <button
+      type="button"
+      (click)="clearSelectedAudio()"
+      [disabled]="!lastAudioBlob">
+      Clear Selected Audio
+    </button>
   </div>
-  
+
+  <div class="section">
+    <h3>2. Send to Backend</h3>
+
+    <button
+      type="button"
+      (click)="sendToBackend()"
+      [disabled]="!lastAudioBlob || isProcessing">
+      Send Audio to Backend
+    </button>
+
+    <p class="status" *ngIf="isProcessing">Processing...</p>
+  </div>
+
+  <div class="section">
+    <h3>3. Transcript Result</h3>
+
+    <p><strong>Recognized Text:</strong></p>
+    <textarea rows="5" [(ngModel)]="recognizedText"></textarea>
+
+    <p><strong>Language mode:</strong> {{ languageMode || 'N/A' }}</p>
+    <p><strong>Detected language:</strong> {{ detectedLanguage || 'N/A' }}</p>
+    <p><strong>Language probability:</strong> {{ languageProbability ?? 'N/A' }}</p>
+  </div>
+
+  <div class="section">
+    <h3>4. Phrase Match Result</h3>
+
+    <p><strong>Matched:</strong> {{ matchFound ? 'Yes' : 'No' }}</p>
+    <p><strong>Match score:</strong> {{ matchScore ?? 'N/A' }}</p>
+    <p><strong>Matched phrase:</strong> {{ matchedPhraseText || 'None' }}</p>
+    <p><strong>Clip exists:</strong> {{ matchedClipExists ? 'Yes' : 'No' }}</p>
+
+    <button
+      type="button"
+      (click)="playMatchedClip()"
+      [disabled]="!matchedClipUrl">
+      Play Matched Clip
+    </button>
+  </div>
+
+  <p class="error" *ngIf="errorMessage">⚠️ {{ errorMessage }}</p>
+</div>
