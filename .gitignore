@@ -1,0 +1,39 @@
+# -------------------------
+# macOS / Windows junk
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Old duplicate backend folder
+# If you are no longer using /backend, delete it from git instead of keeping it.
+# -------------------------
+# backend/
+
+# -------------------------
+# Python backend
+# -------------------------
+backend_api/venv/
+backend_api/.idea/
+backend_api/.env
+backend_api/uploads/
+backend_api/phrase_clips/
+backend_api/**/*.pyc
+backend_api/**/__pycache__/
+backend_api/.pytest_cache/
+
+# These are temporary/experimental files that usually should not live in git
+backend_api/app/uploads/
+backend_api/app/stagingFiles/
+
+# -------------------------
+# Angular frontend
+# -------------------------
+frontend/nepali-voice-ui/node_modules/
+frontend/nepali-voice-ui/dist/
+frontend/nepali-voice-ui/.angular/
+frontend/nepali-voice-ui/coverage/
+frontend/nepali-voice-ui/.vscode/
+
+# Optional: ignore local env files if you add them later
+frontend/nepali-voice-ui/.env

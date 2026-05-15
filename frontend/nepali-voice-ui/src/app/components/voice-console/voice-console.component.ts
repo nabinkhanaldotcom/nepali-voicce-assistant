@@ -1,3 +1,13 @@
+// frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.ts
+
+// This component controls the UI page.
+// It can:
+// 1. record audio from the microphone
+// 2. let the user pick an audio file from the computer
+// 3. send the audio to the backend
+// 4. show transcript + phrase match result
+// 5. play the matched phrase clip if one exists
+
 import { Component, NgZone, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,28 +24,35 @@ import {
   styleUrl: './voice-console.component.scss'
 })
 export class VoiceConsoleComponent implements OnDestroy {
+  // UI states
   isRecording = false;
   isProcessing = false;
 
+  // Transcription / error state
   recognizedText = '';
   errorMessage = '';
 
+  // Language info returned by backend
   detectedLanguage = '';
   languageProbability: number | null = null;
   languageMode = '';
 
+  // Phrase match result returned by backend
   matchFound = false;
   matchScore: number | null = null;
   matchedPhraseText = '';
   matchedClipUrl: string | null = null;
   matchedClipExists = false;
 
+  // Track whether current audio came from microphone or file picker
   selectedInputType: 'recording' | 'file' | null = null;
   selectedAudioName = '';
 
+  // MediaRecorder-related state
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
 
+  // The currently selected audio (recorded or chosen file)
   lastAudioBlob: Blob | null = null;
   recordedAudioUrl: string | null = null;
 
@@ -44,6 +61,9 @@ export class VoiceConsoleComponent implements OnDestroy {
     private ngZone: NgZone
   ) {}
 
+  /**
+   * Start recording audio from the microphone.
+   */
   startRecording(): void {
     this.errorMessage = '';
 
@@ -57,15 +77,18 @@ export class VoiceConsoleComponent implements OnDestroy {
         this.audioChunks = [];
         this.mediaRecorder = new MediaRecorder(stream);
 
+        // Each time the recorder has a chunk, store it.
         this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
           if (event.data && event.data.size > 0) {
             this.audioChunks.push(event.data);
           }
         };
 
+        // When recording stops, combine chunks into one audio blob.
         this.mediaRecorder.onstop = () => {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
 
+          // ngZone.run ensures Angular updates the UI properly
           this.ngZone.run(() => {
             this.setCurrentAudio(
               audioBlob,
@@ -85,6 +108,9 @@ export class VoiceConsoleComponent implements OnDestroy {
       });
   }
 
+  /**
+   * Stop microphone recording.
+   */
   stopRecording(): void {
     if (this.mediaRecorder && this.isRecording) {
       this.mediaRecorder.stop();
@@ -93,6 +119,9 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Called when the user chooses a file from the computer.
+   */
   onFileSelected(event: Event): void {
     this.errorMessage = '';
 
@@ -104,6 +133,7 @@ export class VoiceConsoleComponent implements OnDestroy {
 
     const selectedFile = input.files[0];
 
+    // Basic browser-side validation
     if (!selectedFile.type.startsWith('audio/')) {
       this.errorMessage = 'Please choose a valid audio file.';
       return;
@@ -119,6 +149,9 @@ export class VoiceConsoleComponent implements OnDestroy {
     );
   }
 
+  /**
+   * Send the currently selected audio to the backend.
+   */
   sendToBackend(): void {
     this.errorMessage = '';
 
@@ -143,7 +176,7 @@ export class VoiceConsoleComponent implements OnDestroy {
 
         this.matchFound = res.phrase_match?.matched ?? false;
         this.matchScore = res.phrase_match?.score ?? null;
-        this.matchedPhraseText = res.phrase_match?.matched_phrase?.phrase_text ?? '';
+        this.matchedPhraseText = res.phrase_match?.matched_alias ?? '';
         this.matchedClipExists = res.phrase_match?.clip_exists ?? false;
         this.matchedClipUrl = this.voiceService.getFullClipUrl(res.phrase_match?.clip_url ?? null);
 
@@ -157,6 +190,9 @@ export class VoiceConsoleComponent implements OnDestroy {
     });
   }
 
+  /**
+   * Play the matched backend clip, if one exists.
+   */
   playMatchedClip(): void {
     if (!this.matchedClipUrl) {
       this.errorMessage = 'No matched clip is available.';
@@ -171,6 +207,9 @@ export class VoiceConsoleComponent implements OnDestroy {
     });
   }
 
+  /**
+   * Clear the currently selected/recorded audio.
+   */
   clearSelectedAudio(): void {
     this.lastAudioBlob = null;
     this.selectedInputType = null;
@@ -182,6 +221,10 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Internal helper:
+   * Save the current audio blob + preview URL + source type + file name.
+   */
   private setCurrentAudio(
     audioBlob: Blob,
     previewUrl: string,
@@ -198,6 +241,9 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.selectedAudioName = fileName;
   }
 
+  /**
+   * Clean up temporary browser object URLs.
+   */
   ngOnDestroy(): void {
     if (this.recordedAudioUrl) {
       URL.revokeObjectURL(this.recordedAudioUrl);

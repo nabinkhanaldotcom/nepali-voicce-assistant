@@ -1,5 +1,18 @@
+<!-- frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.html -->
+
+<!--
+  This HTML is the visible page for the voice matcher.
+  It lets the user:
+  1. record audio
+  2. choose an audio file
+  3. send that audio to the backend
+  4. see transcript + phrase match result
+  5. play the matched clip
+-->
+
 <div class="voice-console">
   <h2>Nepali Voice Matcher</h2>
+
   <p>
     Record audio in the browser or choose an audio file from your computer,
     then send it to the Python backend for transcription and phrase matching.
@@ -9,10 +22,12 @@
     <h3>1. Choose Audio Source</h3>
 
     <div class="button-row">
+      <!-- Start microphone recording -->
       <button type="button" (click)="startRecording()" [disabled]="isRecording">
         Start Recording
       </button>
 
+      <!-- Stop microphone recording -->
       <button type="button" (click)="stopRecording()" [disabled]="!isRecording">
         Stop Recording
       </button>
@@ -22,6 +37,8 @@
 
     <div class="file-picker">
       <label for="audioFile"><strong>Or choose an audio file:</strong></label>
+
+      <!-- Browser file picker -->
       <input
         id="audioFile"
         type="file"
@@ -34,6 +51,7 @@
       <p><strong>Selected audio name:</strong> {{ selectedAudioName }}</p>
     </div>
 
+    <!-- Audio preview -->
     <div class="audio-preview" *ngIf="recordedAudioUrl">
       <p><strong>Audio preview:</strong></p>
       <audio [src]="recordedAudioUrl" controls></audio>
@@ -76,7 +94,7 @@
 
     <p><strong>Matched:</strong> {{ matchFound ? 'Yes' : 'No' }}</p>
     <p><strong>Match score:</strong> {{ matchScore ?? 'N/A' }}</p>
-    <p><strong>Matched phrase:</strong> {{ matchedPhraseText || 'None' }}</p>
+    <p><strong>Matched phrase alias:</strong> {{ matchedPhraseText || 'None' }}</p>
     <p><strong>Clip exists:</strong> {{ matchedClipExists ? 'Yes' : 'No' }}</p>
 
     <button
