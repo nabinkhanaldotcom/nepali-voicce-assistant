@@ -38,6 +38,7 @@ frontend/nepali-voice-ui/node_modules/
 frontend/nepali-voice-ui/dist/
 frontend/nepali-voice-ui/.angular/
 frontend/nepali-voice-ui/coverage/
+frontend/nepali-voice-ui/.vscode/
 
 # -------------------------
 # Optional local env files
