@@ -1,16 +1,10 @@
 // frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.ts
 
-// This component controls the UI page.
-// It can:
-// 1. record audio from the microphone
-// 2. let the user pick an audio file from the computer
-// 3. send the audio to the backend
-// 4. show transcript + phrase match result
-// 5. play the matched phrase clip if one exists
-
 import { Component, NgZone, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
+
 import {
   VoiceService,
   TranscribeAndMatchResponse
@@ -26,6 +20,7 @@ import {
 export class VoiceConsoleComponent implements OnDestroy {
   // UI states
   isRecording = false;
+  isPreparingRecording = false;
   isProcessing = false;
 
   // Transcription / error state
@@ -51,6 +46,16 @@ export class VoiceConsoleComponent implements OnDestroy {
   // MediaRecorder-related state
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
+  private currentRecordingStream: MediaStream | null = null;
+
+  // This token helps us ignore stale / older recording-start attempts.
+  private latestRecordingRequestId = 0;
+
+  // Keep track of current backend request so we can cancel older ones.
+  private currentRequestSubscription: Subscription | null = null;
+
+  // Keep track of currently playing matched clip.
+  private currentPlaybackAudio: HTMLAudioElement | null = null;
 
   // The currently selected audio (recorded or chosen file)
   lastAudioBlob: Blob | null = null;
@@ -63,18 +68,45 @@ export class VoiceConsoleComponent implements OnDestroy {
 
   /**
    * Start recording audio from the microphone.
+   *
+   * Behavior:
+   * - if an older "start" request is still in progress, ignore it
+   * - if a matched clip is currently playing, stop it first
    */
   startRecording(): void {
     this.errorMessage = '';
+
+    // Ignore repeated starts while we are already recording
+    // or while the browser permission request is still in progress.
+    if (this.isRecording || this.isPreparingRecording) {
+      return;
+    }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       this.errorMessage = 'This browser does not support microphone recording.';
       return;
     }
 
+    // Stop any matched clip playback before recording starts.
+    this.stopMatchedClipPlayback();
+
+    // Mark that a recording start is in progress.
+    this.isPreparingRecording = true;
+
+    // Create a new request ID.
+    // If another startRecording() call happens later, older responses can be ignored.
+    const requestId = ++this.latestRecordingRequestId;
+
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then((stream: MediaStream) => {
+        // If this is not the latest request anymore, immediately stop it.
+        if (requestId !== this.latestRecordingRequestId) {
+          stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+          return;
+        }
+
         this.audioChunks = [];
+        this.currentRecordingStream = stream;
         this.mediaRecorder = new MediaRecorder(stream);
 
         // Each time the recorder has a chunk, store it.
@@ -88,7 +120,6 @@ export class VoiceConsoleComponent implements OnDestroy {
         this.mediaRecorder.onstop = () => {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
 
-          // ngZone.run ensures Angular updates the UI properly
           this.ngZone.run(() => {
             this.setCurrentAudio(
               audioBlob,
@@ -100,11 +131,14 @@ export class VoiceConsoleComponent implements OnDestroy {
         };
 
         this.mediaRecorder.start();
+
+        this.isPreparingRecording = false;
         this.isRecording = true;
       })
       .catch((err: unknown) => {
         console.error('Microphone access error:', err);
         this.errorMessage = 'Could not access microphone. Please allow microphone permission.';
+        this.isPreparingRecording = false;
       });
   }
 
@@ -114,8 +148,14 @@ export class VoiceConsoleComponent implements OnDestroy {
   stopRecording(): void {
     if (this.mediaRecorder && this.isRecording) {
       this.mediaRecorder.stop();
-      this.mediaRecorder.stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+
+      if (this.currentRecordingStream) {
+        this.currentRecordingStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        this.currentRecordingStream = null;
+      }
+
       this.isRecording = false;
+      this.isPreparingRecording = false;
     }
   }
 
@@ -133,11 +173,13 @@ export class VoiceConsoleComponent implements OnDestroy {
 
     const selectedFile = input.files[0];
 
-    // Basic browser-side validation
     if (!selectedFile.type.startsWith('audio/')) {
       this.errorMessage = 'Please choose a valid audio file.';
       return;
     }
+
+    // Stop any matched clip playback before switching input.
+    this.stopMatchedClipPlayback();
 
     const previewUrl = URL.createObjectURL(selectedFile);
 
@@ -150,7 +192,10 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Send the currently selected audio to the backend.
+   * Send the current audio to the backend.
+   *
+   * If an older request is still running, unsubscribe from it
+   * and use the newest request instead.
    */
   sendToBackend(): void {
     this.errorMessage = '';
@@ -165,33 +210,45 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
+    // Cancel older request if it is still active.
+    if (this.currentRequestSubscription) {
+      this.currentRequestSubscription.unsubscribe();
+      this.currentRequestSubscription = null;
+    }
+
     this.isProcessing = true;
 
-    this.voiceService.transcribeAndMatch(this.lastAudioBlob, this.selectedAudioName).subscribe({
-      next: (res: TranscribeAndMatchResponse) => {
-        this.recognizedText = res.transcript || '';
-        this.detectedLanguage = res.detected_language || '';
-        this.languageProbability = res.language_probability ?? null;
-        this.languageMode = res.language_mode || '';
+    this.currentRequestSubscription = this.voiceService
+      .transcribeAndMatch(this.lastAudioBlob, this.selectedAudioName)
+      .subscribe({
+        next: (res: TranscribeAndMatchResponse) => {
+          this.recognizedText = res.transcript || '';
+          this.detectedLanguage = res.detected_language || '';
+          this.languageProbability = res.language_probability ?? null;
+          this.languageMode = res.language_mode || '';
 
-        this.matchFound = res.phrase_match?.matched ?? false;
-        this.matchScore = res.phrase_match?.score ?? null;
-        this.matchedPhraseText = res.phrase_match?.matched_alias ?? '';
-        this.matchedClipExists = res.phrase_match?.clip_exists ?? false;
-        this.matchedClipUrl = this.voiceService.getFullClipUrl(res.phrase_match?.clip_url ?? null);
+          this.matchFound = res.phrase_match?.matched ?? false;
+          this.matchScore = res.phrase_match?.score ?? null;
+          this.matchedPhraseText = res.phrase_match?.matched_alias ?? '';
+          this.matchedClipExists = res.phrase_match?.clip_exists ?? false;
+          this.matchedClipUrl = this.voiceService.getFullClipUrl(res.phrase_match?.clip_url ?? null);
 
-        this.isProcessing = false;
-      },
-      error: (err: unknown) => {
-        console.error('Backend error:', err);
-        this.errorMessage = 'Error sending audio to the backend.';
-        this.isProcessing = false;
-      }
-    });
+          this.isProcessing = false;
+          this.currentRequestSubscription = null;
+        },
+        error: (err: unknown) => {
+          console.error('Backend error:', err);
+          this.errorMessage = 'Error sending audio to the backend.';
+          this.isProcessing = false;
+          this.currentRequestSubscription = null;
+        }
+      });
   }
 
   /**
-   * Play the matched backend clip, if one exists.
+   * Play the matched backend clip.
+   *
+   * If an older clip is still playing, stop it first.
    */
   playMatchedClip(): void {
     if (!this.matchedClipUrl) {
@@ -199,7 +256,18 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
+    // Stop the currently playing clip before starting a new one.
+    this.stopMatchedClipPlayback();
+
     const audio = new Audio(this.matchedClipUrl);
+    this.currentPlaybackAudio = audio;
+
+    // When playback ends, clear the reference.
+    audio.onended = () => {
+      if (this.currentPlaybackAudio === audio) {
+        this.currentPlaybackAudio = null;
+      }
+    };
 
     audio.play().catch((err: unknown) => {
       console.warn('Audio play error:', err);
@@ -208,7 +276,18 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Clear the currently selected/recorded audio.
+   * Stop any currently playing matched clip.
+   */
+  private stopMatchedClipPlayback(): void {
+    if (this.currentPlaybackAudio) {
+      this.currentPlaybackAudio.pause();
+      this.currentPlaybackAudio.currentTime = 0;
+      this.currentPlaybackAudio = null;
+    }
+  }
+
+  /**
+   * Clear the selected/recorded audio from the UI.
    */
   clearSelectedAudio(): void {
     this.lastAudioBlob = null;
@@ -222,8 +301,8 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Internal helper:
-   * Save the current audio blob + preview URL + source type + file name.
+   * Helper:
+   * Save the current audio blob + preview URL + input type + file name.
    */
   private setCurrentAudio(
     audioBlob: Blob,
@@ -242,9 +321,21 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Clean up temporary browser object URLs.
+   * Cleanup when component is destroyed.
    */
   ngOnDestroy(): void {
+    if (this.currentRequestSubscription) {
+      this.currentRequestSubscription.unsubscribe();
+      this.currentRequestSubscription = null;
+    }
+
+    this.stopMatchedClipPlayback();
+
+    if (this.currentRecordingStream) {
+      this.currentRecordingStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      this.currentRecordingStream = null;
+    }
+
     if (this.recordedAudioUrl) {
       URL.revokeObjectURL(this.recordedAudioUrl);
     }

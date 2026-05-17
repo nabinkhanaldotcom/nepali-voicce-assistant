@@ -1,15 +1,5 @@
 <!-- frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.html -->
 
-<!--
-  This HTML is the visible page for the voice matcher.
-  It lets the user:
-  1. record audio
-  2. choose an audio file
-  3. send that audio to the backend
-  4. see transcript + phrase match result
-  5. play the matched clip
--->
-
 <div class="voice-console">
   <h2>Nepali Voice Matcher</h2>
 
@@ -22,23 +12,29 @@
     <h3>1. Choose Audio Source</h3>
 
     <div class="button-row">
-      <!-- Start microphone recording -->
-      <button type="button" (click)="startRecording()" [disabled]="isRecording">
+      <!-- Start recording -->
+      <button
+        type="button"
+        (click)="startRecording()"
+        [disabled]="isRecording || isPreparingRecording">
         Start Recording
       </button>
 
-      <!-- Stop microphone recording -->
-      <button type="button" (click)="stopRecording()" [disabled]="!isRecording">
+      <!-- Stop recording -->
+      <button
+        type="button"
+        (click)="stopRecording()"
+        [disabled]="!isRecording">
         Stop Recording
       </button>
     </div>
 
+    <p class="status" *ngIf="isPreparingRecording">Preparing microphone...</p>
     <p class="status" *ngIf="isRecording">Recording...</p>
 
     <div class="file-picker">
       <label for="audioFile"><strong>Or choose an audio file:</strong></label>
 
-      <!-- Browser file picker -->
       <input
         id="audioFile"
         type="file"
@@ -51,10 +47,28 @@
       <p><strong>Selected audio name:</strong> {{ selectedAudioName }}</p>
     </div>
 
-    <!-- Audio preview -->
     <div class="audio-preview" *ngIf="recordedAudioUrl">
       <p><strong>Audio preview:</strong></p>
+
+      <!--
+        Browser-native audio controls.
+        In some browsers, this may show the three-dot menu with download.
+        That behavior is controlled by the browser.
+      -->
       <audio [src]="recordedAudioUrl" controls></audio>
+
+      <!--
+        Reliable download option.
+        This guarantees the user can download the preview audio even if
+        the browser does not show a download entry inside the controls menu.
+      -->
+      <p>
+        <a
+          [href]="recordedAudioUrl"
+          [download]="selectedAudioName || 'recording.webm'">
+          Download Preview Audio
+        </a>
+      </p>
     </div>
 
     <button
