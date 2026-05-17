@@ -12,7 +12,6 @@
     <h3>1. Choose Audio Source</h3>
 
     <div class="button-row">
-      <!-- Start recording -->
       <button
         type="button"
         (click)="startRecording()"
@@ -20,7 +19,6 @@
         Start Recording
       </button>
 
-      <!-- Stop recording -->
       <button
         type="button"
         (click)="stopRecording()"
@@ -34,7 +32,6 @@
 
     <div class="file-picker">
       <label for="audioFile"><strong>Or choose an audio file:</strong></label>
-
       <input
         id="audioFile"
         type="file"
@@ -50,25 +47,34 @@
     <div class="audio-preview" *ngIf="recordedAudioUrl">
       <p><strong>Audio preview:</strong></p>
 
-      <!--
-        Browser-native audio controls.
-        In some browsers, this may show the three-dot menu with download.
-        That behavior is controlled by the browser.
-      -->
-      <audio [src]="recordedAudioUrl" controls></audio>
+      <!-- Keep the native audio player at its normal size -->
+      <div class="audio-inline-actions">
+        <audio [src]="recordedAudioUrl" controls></audio>
 
-      <!--
-        Reliable download option.
-        This guarantees the user can download the preview audio even if
-        the browser does not show a download entry inside the controls menu.
-      -->
-      <p>
-        <a
-          [href]="recordedAudioUrl"
-          [download]="selectedAudioName || 'recording.webm'">
-          Download Preview Audio
-        </a>
-      </p>
+        <!-- Place the three-dot button immediately next to the player -->
+        <div class="preview-menu-wrapper">
+          <button
+            type="button"
+            class="menu-button"
+            (click)="togglePreviewMenu($event)"
+            aria-label="Audio preview menu">
+            ⋮
+          </button>
+
+          <div
+            class="preview-menu"
+            *ngIf="previewMenuOpen"
+            (click)="$event.stopPropagation()">
+
+            <a
+              [href]="recordedAudioUrl"
+              [download]="selectedAudioName || 'recording.webm'"
+              (click)="closePreviewMenu()">
+              Download Preview Audio
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
 
     <button
