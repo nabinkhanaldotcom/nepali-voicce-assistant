@@ -1,0 +1,21 @@
+[
+  {
+    "id": "phrase_1",
+    "aliases": [
+      "त्यसो गरे कस्तो होला",
+      "teso gare kasto hola",
+      "tesho gare kasho hola",
+      "tesho-gare kasho hola"
+    ],
+    "clip_filename": "teshoGareKashoHola1.m4a"
+  },
+  {
+    "id": "phrase_2",
+    "aliases": [
+      "आबुई, आबुई",
+      "abuii abuii ",
+      "abui abui"
+    ],
+    "clip_filename": "abuiiiAbuiii.m4a"
+  }
+]
