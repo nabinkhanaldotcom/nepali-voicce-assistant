@@ -26,8 +26,6 @@ venv/
 # -------------------------
 # Backend generated folders
 # -------------------------
-backend_api/uploads/
-backend_api/phrase_clips/
 backend_api/app/uploads/
 backend_api/app/stagingFiles/
 
