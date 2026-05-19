@@ -7,15 +7,18 @@
       "tesho gare kasho hola",
       "tesho-gare kasho hola"
     ],
-    "clip_filename": "teshoGareKashoHola1.m4a"
+    "clip_filename": "teshoGareKashoHola1.m4a",
+    "minimum_score": 70
   },
   {
     "id": "phrase_2",
     "aliases": [
       "आबुई, आबुई",
-      "abuii abuii ",
+      "अभुई अभुई",
+      "abuii abuii",
       "abui abui"
     ],
-    "clip_filename": "abuiiiAbuiii.m4a"
+    "clip_filename": "abuiiiAbuiii.m4a",
+    "minimum_score": 60
   }
 ]

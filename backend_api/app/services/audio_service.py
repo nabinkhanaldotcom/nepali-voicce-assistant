@@ -6,6 +6,7 @@
 # 3. transcribing audio
 # 4. doing normal phrase matching
 # 5. doing debug phrase matching
+# 6. providing a default phrase threshold
 
 from pathlib import Path
 from uuid import uuid4
@@ -40,8 +41,8 @@ TRANSCRIPTION_LANGUAGE = "ne"
 # Use Voice Activity Detection to trim silence/no-speech parts
 USE_VAD_FILTER = True
 
-# Match threshold
-MATCH_MINIMUM_SCORE = 70.0
+# Default threshold for phrases that do not define their own minimum_score
+DEFAULT_MATCH_MINIMUM_SCORE = 70.0
 
 # Cache the model so it loads only once
 _whisper_model = None
@@ -153,13 +154,13 @@ async def transcribe_and_match_audio(file: UploadFile):
 
     phrase_match_result = find_best_phrase_match(
         transcription_result["transcript"],
-        minimum_score=MATCH_MINIMUM_SCORE
+        default_minimum_score=DEFAULT_MATCH_MINIMUM_SCORE
     )
 
     return {
         "message": "Audio uploaded, transcribed, and checked for phrase match",
         **transcription_result,
-        "match_threshold": MATCH_MINIMUM_SCORE,
+        "default_match_threshold": DEFAULT_MATCH_MINIMUM_SCORE,
         "phrase_match": phrase_match_result,
         "file_info": saved_file_info
     }
@@ -168,22 +169,25 @@ async def transcribe_and_match_audio(file: UploadFile):
 async def transcribe_and_debug_match_audio(file: UploadFile):
     """
     Save uploaded audio, transcribe it, and return debug scoring details
-    for ALL phrases.
+    for all phrases.
     """
     saved_file_info = await save_uploaded_audio(file)
     transcription_result = transcribe_saved_audio(saved_file_info["saved_path"])
 
     phrase_match_result = find_best_phrase_match(
         transcription_result["transcript"],
-        minimum_score=MATCH_MINIMUM_SCORE
+        default_minimum_score=DEFAULT_MATCH_MINIMUM_SCORE
     )
 
-    debug_scores = get_phrase_debug_scores(transcription_result["transcript"])
+    debug_scores = get_phrase_debug_scores(
+        transcription_result["transcript"],
+        default_minimum_score=DEFAULT_MATCH_MINIMUM_SCORE
+    )
 
     return {
         "message": "Audio uploaded, transcribed, and debug phrase scores generated",
         **transcription_result,
-        "match_threshold": MATCH_MINIMUM_SCORE,
+        "default_match_threshold": DEFAULT_MATCH_MINIMUM_SCORE,
         "phrase_match": phrase_match_result,
         "debug_scores": debug_scores,
         "file_info": saved_file_info
