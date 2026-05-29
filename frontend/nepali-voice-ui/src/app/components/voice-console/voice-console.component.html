@@ -47,11 +47,9 @@
     <div class="audio-preview" *ngIf="recordedAudioUrl">
       <p><strong>Audio preview:</strong></p>
 
-      <!-- Keep the native audio player at its normal size -->
       <div class="audio-inline-actions">
         <audio [src]="recordedAudioUrl" controls></audio>
 
-        <!-- Place the three-dot button immediately next to the player -->
         <div class="preview-menu-wrapper">
           <button
             type="button"
@@ -86,7 +84,21 @@
   </div>
 
   <div class="section">
-    <h3>2. Send to Backend</h3>
+    <h3>2. Transcription Mode</h3>
+
+    <div class="provider-row">
+      <label for="providerSelect"><strong>Provider:</strong></label>
+
+      <select id="providerSelect" [(ngModel)]="selectedProvider">
+        <option value="auto">Auto (local first, then fallback if needed)</option>
+        <option value="local">Local Whisper only</option>
+        <option value="openai">OpenAI only</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>3. Send to Backend</h3>
 
     <button
       type="button"
@@ -99,7 +111,19 @@
   </div>
 
   <div class="section">
-    <h3>3. Transcript Result</h3>
+    <h3>4. Provider Result</h3>
+
+    <p><strong>Requested provider:</strong> {{ providerRequested || 'N/A' }}</p>
+    <p><strong>Used provider:</strong> {{ providerUsed || 'N/A' }}</p>
+    <p><strong>Model used:</strong> {{ providerModelUsed || 'N/A' }}</p>
+    <p><strong>Fallback used:</strong> {{ fallbackUsed ? 'Yes' : 'No' }}</p>
+    <p><strong>Fallback reason:</strong> {{ fallbackReason || 'N/A' }}</p>
+    <p><strong>Audio duration (seconds):</strong> {{ audioDurationSeconds ?? 'N/A' }}</p>
+    <p><strong>Estimated cost (USD):</strong> {{ costEstimateUsd ?? 0 }}</p>
+  </div>
+
+  <div class="section">
+    <h3>5. Transcript Result</h3>
 
     <p><strong>Recognized Text:</strong></p>
     <textarea rows="5" [(ngModel)]="recognizedText"></textarea>
@@ -110,7 +134,7 @@
   </div>
 
   <div class="section">
-    <h3>4. Phrase Match Result</h3>
+    <h3>6. Phrase Match Result</h3>
 
     <p><strong>Matched:</strong> {{ matchFound ? 'Yes' : 'No' }}</p>
     <p><strong>Match score:</strong> {{ matchScore ?? 'N/A' }}</p>

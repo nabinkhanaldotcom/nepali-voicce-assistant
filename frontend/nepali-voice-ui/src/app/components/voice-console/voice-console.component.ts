@@ -1,16 +1,5 @@
 // frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.ts
 
-// This component controls the UI page.
-// It can:
-// 1. record audio from the microphone
-// 2. let the user pick an audio file from the computer
-// 3. send the audio to the backend
-// 4. show transcript + phrase match result
-// 5. play the matched phrase clip
-// 6. show a custom three-dot menu for preview actions
-// 7. stop old playback before new playback starts
-// 8. ignore stale repeated recording-start clicks
-
 import { Component, HostListener, NgZone, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,7 +7,8 @@ import { Subscription } from 'rxjs';
 
 import {
   VoiceService,
-  TranscribeAndMatchResponse
+  TranscribeAndMatchResponse,
+  TranscriptionProvider
 } from '../../services/voice.service';
 
 @Component({
@@ -41,6 +31,22 @@ export class VoiceConsoleComponent implements OnDestroy {
   // -----------------------------
   recognizedText = '';
   errorMessage = '';
+
+  // -----------------------------
+  // Transcription provider selection
+  // -----------------------------
+  selectedProvider: TranscriptionProvider = 'auto';
+
+  // -----------------------------
+  // Provider result info returned by backend
+  // -----------------------------
+  providerRequested = '';
+  providerUsed = '';
+  providerModelUsed = '';
+  fallbackUsed = false;
+  fallbackReason = '';
+  audioDurationSeconds: number | null = null;
+  costEstimateUsd: number | null = null;
 
   // -----------------------------
   // Language info returned by backend
@@ -75,17 +81,17 @@ export class VoiceConsoleComponent implements OnDestroy {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private currentRecordingStream: MediaStream | null = null;
-
-  // This number helps ignore stale/older recording-start attempts.
   private latestRecordingRequestId = 0;
 
-  // Keep track of current backend request so we can cancel the older one.
+  // -----------------------------
+  // Request / playback management
+  // -----------------------------
   private currentRequestSubscription: Subscription | null = null;
-
-  // Keep track of current matched-clip playback so we can stop it.
   private currentPlaybackAudio: HTMLAudioElement | null = null;
 
-  // The currently selected audio (recorded or chosen file)
+  // -----------------------------
+  // Current selected audio
+  // -----------------------------
   lastAudioBlob: Blob | null = null;
   recordedAudioUrl: string | null = null;
 
@@ -95,7 +101,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   ) {}
 
   /**
-   * Close the preview menu when the user clicks anywhere outside it.
+   * Close the preview menu when user clicks elsewhere.
    */
   @HostListener('document:click')
   onDocumentClick(): void {
@@ -103,12 +109,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Start recording audio from the microphone.
-   *
-   * Behavior:
-   * - ignore repeated clicks while we are already recording
-   * - ignore repeated clicks while microphone permission is still preparing
-   * - stop old matched playback before starting recording
+   * Start microphone recording.
    */
   startRecording(): void {
     this.errorMessage = '';
@@ -122,17 +123,13 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
-    // Stop any currently playing matched clip before recording begins.
     this.stopMatchedClipPlayback();
-
     this.isPreparingRecording = true;
 
-    // Increase request id so older in-flight start requests can be ignored.
     const requestId = ++this.latestRecordingRequestId;
 
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then((stream: MediaStream) => {
-        // If this response belongs to an older click, ignore it.
         if (requestId !== this.latestRecordingRequestId) {
           stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
           return;
@@ -142,14 +139,12 @@ export class VoiceConsoleComponent implements OnDestroy {
         this.currentRecordingStream = stream;
         this.mediaRecorder = new MediaRecorder(stream);
 
-        // Save each chunk produced by the recorder.
         this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
           if (event.data && event.data.size > 0) {
             this.audioChunks.push(event.data);
           }
         };
 
-        // When the recorder stops, combine chunks into one Blob.
         this.mediaRecorder.onstop = () => {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
 
@@ -175,7 +170,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Stop the current microphone recording.
+   * Stop microphone recording.
    */
   stopRecording(): void {
     if (this.mediaRecorder && this.isRecording) {
@@ -192,7 +187,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Called when the user chooses an audio file from the file picker.
+   * Handle file picker selection.
    */
   onFileSelected(event: Event): void {
     this.errorMessage = '';
@@ -210,7 +205,6 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
-    // Stop matched clip playback before switching source.
     this.stopMatchedClipPlayback();
 
     const previewUrl = URL.createObjectURL(selectedFile);
@@ -224,9 +218,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Send the selected audio to the backend.
-   *
-   * If an older request is still in progress, cancel it and use the latest one.
+   * Send the current audio to the backend.
    */
   sendToBackend(): void {
     this.errorMessage = '';
@@ -241,7 +233,6 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
-    // Cancel older request if one is still running.
     if (this.currentRequestSubscription) {
       this.currentRequestSubscription.unsubscribe();
       this.currentRequestSubscription = null;
@@ -250,10 +241,19 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.isProcessing = true;
 
     this.currentRequestSubscription = this.voiceService
-      .transcribeAndMatch(this.lastAudioBlob, this.selectedAudioName)
+      .transcribeAndMatch(this.lastAudioBlob, this.selectedAudioName, this.selectedProvider)
       .subscribe({
         next: (res: TranscribeAndMatchResponse) => {
           this.recognizedText = res.transcript || '';
+
+          this.providerRequested = res.provider_requested || '';
+          this.providerUsed = res.provider_used || '';
+          this.providerModelUsed = res.provider_model_used || '';
+          this.fallbackUsed = res.fallback_used ?? false;
+          this.fallbackReason = res.fallback_reason || '';
+          this.audioDurationSeconds = res.audio_duration_seconds ?? null;
+          this.costEstimateUsd = res.cost_estimate_usd ?? null;
+
           this.detectedLanguage = res.detected_language || '';
           this.languageProbability = res.language_probability ?? null;
           this.languageMode = res.language_mode || '';
@@ -278,8 +278,6 @@ export class VoiceConsoleComponent implements OnDestroy {
 
   /**
    * Play the matched clip.
-   *
-   * If a previous matched clip is already playing, stop it first.
    */
   playMatchedClip(): void {
     if (!this.matchedClipUrl) {
@@ -305,7 +303,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Stop the currently playing matched clip, if any.
+   * Stop any currently playing matched clip.
    */
   private stopMatchedClipPlayback(): void {
     if (this.currentPlaybackAudio) {
@@ -316,10 +314,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Toggle the custom preview menu.
-   *
-   * stopPropagation() prevents the document click handler
-   * from closing it immediately.
+   * Toggle the preview menu.
    */
   togglePreviewMenu(event: MouseEvent): void {
     event.stopPropagation();
@@ -327,14 +322,14 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Close the preview menu manually.
+   * Close preview menu.
    */
   closePreviewMenu(): void {
     this.previewMenuOpen = false;
   }
 
   /**
-   * Clear the current selected/recorded audio.
+   * Clear current selected/recorded audio.
    */
   clearSelectedAudio(): void {
     this.lastAudioBlob = null;
@@ -349,8 +344,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Helper:
-   * Save the current audio blob + preview URL + source type + file name.
+   * Save the current audio blob and preview URL.
    */
   private setCurrentAudio(
     audioBlob: Blob,
@@ -370,7 +364,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Cleanup when the component is destroyed.
+   * Cleanup when component is destroyed.
    */
   ngOnDestroy(): void {
     if (this.currentRequestSubscription) {

@@ -3,3 +3,5 @@ uvicorn==0.40.0
 python-multipart==0.0.21
 faster-whisper
 rapidfuzz
+openai
+av
