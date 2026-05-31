@@ -477,6 +477,8 @@ def run_transcription_pipeline(saved_path: str, provider: str, include_debug_sco
     for attempt in attempts:
         total_estimated_cost_usd += attempt["estimated_cost_usd"] or 0.0
 
+    output_decision = build_output_decision(chosen_phrase_match)
+
     response = {
         "transcript": chosen_transcription["transcript"],
         "detected_language": chosen_transcription["detected_language"],
@@ -491,6 +493,7 @@ def run_transcription_pipeline(saved_path: str, provider: str, include_debug_sco
         "audio_duration_seconds": round_optional(chosen_attempt["audio_duration_seconds"], 3),
         "cost_estimate_usd": round_optional(total_estimated_cost_usd, 6),
         "phrase_match": chosen_phrase_match,
+        "output_decision": output_decision,
         "transcription_attempts": [serialize_attempt(attempt) for attempt in attempts]
     }
 
@@ -501,6 +504,31 @@ def run_transcription_pipeline(saved_path: str, provider: str, include_debug_sco
         )
 
     return response
+
+def build_output_decision(phrase_match: dict):
+    """
+    Build a clear final output decision for the frontend.
+
+    Possible modes for now:
+    - replay_clip
+    - no_clip_match
+    """
+    if phrase_match["matched"] and phrase_match["clip_exists"] and phrase_match["clip_url"]:
+        matched_phrase = phrase_match.get("matched_phrase")
+
+        return {
+            "output_mode": "replay_clip",
+            "output_clip_url": phrase_match["clip_url"],
+            "output_phrase_id": matched_phrase["id"] if matched_phrase else None,
+            "output_phrase_alias": phrase_match.get("matched_alias")
+        }
+
+    return {
+        "output_mode": "no_clip_match",
+        "output_clip_url": None,
+        "output_phrase_id": None,
+        "output_phrase_alias": None
+    }
 
 
 async def transcribe_uploaded_audio(file: UploadFile, provider: str = "auto"):
