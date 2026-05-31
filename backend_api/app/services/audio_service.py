@@ -509,9 +509,10 @@ def build_output_decision(phrase_match: dict):
     """
     Build a clear final output decision for the frontend.
 
-    Possible modes for now:
-    - replay_clip
-    - no_clip_match
+    Current modes:
+    - replay_clip   -> use the real saved phrase clip
+    - generate_voice -> no saved clip should be replayed, so a future
+                        voice-generation step should handle the output
     """
     if phrase_match["matched"] and phrase_match["clip_exists"] and phrase_match["clip_url"]:
         matched_phrase = phrase_match.get("matched_phrase")
@@ -524,7 +525,7 @@ def build_output_decision(phrase_match: dict):
         }
 
     return {
-        "output_mode": "no_clip_match",
+        "output_mode": "generate_voice",
         "output_clip_url": None,
         "output_phrase_id": None,
         "output_phrase_alias": None
