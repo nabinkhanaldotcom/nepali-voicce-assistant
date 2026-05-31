@@ -34,11 +34,15 @@ ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".webm", ".ogg"}
 # -----------------------------
 # Local Faster-Whisper configuration
 # -----------------------------
+# MODEL_SIZE = "small"
 MODEL_SIZE = "medium"
+# MODEL_SIZE = "large"
 DEVICE = "cpu"
+# DEVICE = "gpu"
 CPU_THREADS = 6
 COMPUTE_TYPE = "int8"
 TRANSCRIPTION_LANGUAGE = "ne"
+# VAD = Voice Activity Detection
 USE_VAD_FILTER = True
 
 # -----------------------------

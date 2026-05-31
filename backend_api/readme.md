@@ -26,13 +26,13 @@ python3.11 -m venv venv
 # Activate it (macOS / Linux)
 source venv/bin/activate
 
+pip install --upgrade pip
+
 # Install backend packages
 pip install -r requirements.txt
 
 # Run the FastAPI server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-
 
 
 cd frontend/nepali-voice-ui
