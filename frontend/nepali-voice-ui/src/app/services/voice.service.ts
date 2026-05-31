@@ -24,7 +24,7 @@ export interface PhraseMatchResult {
 }
 
 export interface OutputDecision {
-  output_mode: 'replay_clip' | 'no_clip_match';
+  output_mode: 'replay_clip' | 'generate_voice';
   output_clip_url: string | null;
   output_phrase_id: string | null;
   output_phrase_alias: string | null;

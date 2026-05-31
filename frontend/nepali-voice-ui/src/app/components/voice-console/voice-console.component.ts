@@ -48,7 +48,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   audioDurationSeconds: number | null = null;
   costEstimateUsd: number | null = null;
 
-  outputMode: 'replay_clip' | 'no_clip_match' | '' = '';
+  outputMode: 'replay_clip' | 'generate_voice' | '' = '';
   outputClipUrl: string | null = null;
   outputPhraseId = '';
   outputPhraseAlias = '';
