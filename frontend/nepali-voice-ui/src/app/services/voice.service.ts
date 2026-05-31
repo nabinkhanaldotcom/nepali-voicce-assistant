@@ -23,6 +23,13 @@ export interface PhraseMatchResult {
   clip_url: string | null;
 }
 
+export interface OutputDecision {
+  output_mode: 'replay_clip' | 'no_clip_match';
+  output_clip_url: string | null;
+  output_phrase_id: string | null;
+  output_phrase_alias: string | null;
+}
+
 export interface FileInfo {
   original_filename: string;
   saved_filename: string;
@@ -72,6 +79,7 @@ export interface TranscribeAndMatchResponse {
   audio_duration_seconds: number | null;
   cost_estimate_usd: number | null;
   phrase_match: PhraseMatchResult;
+  output_decision: OutputDecision;
   transcription_attempts: TranscriptionAttempt[];
   debug_scores?: DebugPhraseScore[];
   file_info: FileInfo;

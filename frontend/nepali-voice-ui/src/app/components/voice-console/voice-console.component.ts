@@ -48,6 +48,11 @@ export class VoiceConsoleComponent implements OnDestroy {
   audioDurationSeconds: number | null = null;
   costEstimateUsd: number | null = null;
 
+  outputMode: 'replay_clip' | 'no_clip_match' | '' = '';
+  outputClipUrl: string | null = null;
+  outputPhraseId = '';
+  outputPhraseAlias = '';
+
   // -----------------------------
   // Language info returned by backend
   // -----------------------------
@@ -98,7 +103,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   constructor(
     private voiceService: VoiceService,
     private ngZone: NgZone
-  ) {}
+  ) { }
 
   /**
    * Close the preview menu when user clicks elsewhere.
@@ -264,6 +269,11 @@ export class VoiceConsoleComponent implements OnDestroy {
           this.matchedClipExists = res.phrase_match?.clip_exists ?? false;
           this.matchedClipUrl = this.voiceService.getFullClipUrl(res.phrase_match?.clip_url ?? null);
 
+          this.outputMode = res.output_decision?.output_mode ?? '';
+          this.outputClipUrl = this.voiceService.getFullClipUrl(res.output_decision?.output_clip_url ?? null);
+          this.outputPhraseId = res.output_decision?.output_phrase_id ?? '';
+          this.outputPhraseAlias = res.output_decision?.output_phrase_alias ?? '';
+
           this.isProcessing = false;
           this.currentRequestSubscription = null;
         },
@@ -274,6 +284,30 @@ export class VoiceConsoleComponent implements OnDestroy {
           this.currentRequestSubscription = null;
         }
       });
+  }
+
+
+  playOutputClip(): void {
+    if (!this.outputClipUrl) {
+      this.errorMessage = 'No output clip is available.';
+      return;
+    }
+
+    this.stopMatchedClipPlayback();
+
+    const audio = new Audio(this.outputClipUrl);
+    this.currentPlaybackAudio = audio;
+
+    audio.onended = () => {
+      if (this.currentPlaybackAudio === audio) {
+        this.currentPlaybackAudio = null;
+      }
+    };
+
+    audio.play().catch((err: unknown) => {
+      console.warn('Audio play error:', err);
+      this.errorMessage = 'Could not play the output clip.';
+    });
   }
 
   /**

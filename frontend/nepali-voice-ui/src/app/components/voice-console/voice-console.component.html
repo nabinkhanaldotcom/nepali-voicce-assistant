@@ -149,5 +149,20 @@
     </button>
   </div>
 
+  <div class="section">
+    <h3>7. Output Decision</h3>
+
+    <p><strong>Output mode:</strong> {{ outputMode || 'N/A' }}</p>
+    <p><strong>Output phrase id:</strong> {{ outputPhraseId || 'N/A' }}</p>
+    <p><strong>Output phrase alias:</strong> {{ outputPhraseAlias || 'N/A' }}</p>
+
+    <button
+      type="button"
+      (click)="playOutputClip()"
+      [disabled]="!outputClipUrl">
+      Play Output Clip
+    </button>
+  </div>
+
   <p class="error" *ngIf="errorMessage">⚠️ {{ errorMessage }}</p>
 </div>
