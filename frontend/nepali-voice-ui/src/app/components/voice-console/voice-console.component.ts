@@ -1,14 +1,27 @@
 // frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.ts
+//
+// This component controls the browser UI:
+// - record audio
+// - upload audio
+// - select provider
+// - select OpenAI model if needed
+// - select tone preset
+// - send audio to FastAPI
+// - show transcript and matched clip
+// - play matched clip
 
-import { Component, HostListener, NgZone, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, HostListener, NgZone, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
 import {
-  VoiceService,
+  MatchedClip,
+  OpenAiTranscriptionModel,
+  TonePreset,
   TranscribeAndMatchResponse,
-  TranscriptionProvider
+  TranscriptionProvider,
+  VoiceService
 } from '../../services/voice.service';
 
 @Component({
@@ -33,41 +46,46 @@ export class VoiceConsoleComponent implements OnDestroy {
   errorMessage = '';
 
   // -----------------------------
-  // Transcription provider selection
+  // Manual transcription provider selection
   // -----------------------------
-  selectedProvider: TranscriptionProvider = 'auto';
+  selectedProvider: TranscriptionProvider = 'local_whisper';
+
+  selectedOpenAiModel: OpenAiTranscriptionModel = 'gpt-4o-mini-transcribe';
+
+  selectedTonePreset: TonePreset = 'original';
 
   // -----------------------------
   // Provider result info returned by backend
   // -----------------------------
   providerRequested = '';
   providerUsed = '';
-  providerModelUsed = '';
-  fallbackUsed = false;
-  fallbackReason = '';
-  audioDurationSeconds: number | null = null;
-  costEstimateUsd: number | null = null;
+  modelUsed = '';
 
-  outputMode: 'replay_clip' | 'generate_voice' | '' = '';
-  outputClipUrl: string | null = null;
-  outputPhraseId = '';
-  outputPhraseAlias = '';
+  durationSeconds: number | null = null;
+  estimatedCostUsd = 0;
+
+  tonePresetReturned = '';
 
   // -----------------------------
   // Language info returned by backend
   // -----------------------------
   detectedLanguage = '';
   languageProbability: number | null = null;
-  languageMode = '';
 
   // -----------------------------
   // Phrase match info returned by backend
   // -----------------------------
-  matchFound = false;
   matchScore: number | null = null;
-  matchedPhraseText = '';
+  matchedClip: MatchedClip | null = null;
   matchedClipUrl: string | null = null;
-  matchedClipExists = false;
+
+  // -----------------------------
+  // Future output-generation placeholder
+  // -----------------------------
+  outputDecisionStatus = '';
+  outputDecisionMessage = '';
+  outputDecisionTonePreset = '';
+  outputDecisionShouldGenerateVoice = false;
 
   // -----------------------------
   // Audio source info
@@ -103,7 +121,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   constructor(
     private voiceService: VoiceService,
     private ngZone: NgZone
-  ) { }
+  ) {}
 
   /**
    * Close the preview menu when user clicks elsewhere.
@@ -128,12 +146,14 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
-    this.stopMatchedClipPlayback();
-    this.isPreparingRecording = true;
+    this.stopCurrentAudioPlayback();
+    this.clearResultsOnly();
 
+    this.isPreparingRecording = true;
     const requestId = ++this.latestRecordingRequestId;
 
-    navigator.mediaDevices.getUserMedia({ audio: true })
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
       .then((stream: MediaStream) => {
         if (requestId !== this.latestRecordingRequestId) {
           stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
@@ -164,12 +184,16 @@ export class VoiceConsoleComponent implements OnDestroy {
         };
 
         this.mediaRecorder.start();
+
         this.isPreparingRecording = false;
         this.isRecording = true;
       })
       .catch((err: unknown) => {
         console.error('Microphone access error:', err);
-        this.errorMessage = 'Could not access microphone. Please allow microphone permission.';
+
+        this.errorMessage =
+          'Could not access microphone. Please allow microphone permission.';
+
         this.isPreparingRecording = false;
       });
   }
@@ -182,7 +206,10 @@ export class VoiceConsoleComponent implements OnDestroy {
       this.mediaRecorder.stop();
 
       if (this.currentRecordingStream) {
-        this.currentRecordingStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        this.currentRecordingStream
+          .getTracks()
+          .forEach((track: MediaStreamTrack) => track.stop());
+
         this.currentRecordingStream = null;
       }
 
@@ -210,7 +237,8 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
-    this.stopMatchedClipPlayback();
+    this.stopCurrentAudioPlayback();
+    this.clearResultsOnly();
 
     const previewUrl = URL.createObjectURL(selectedFile);
 
@@ -223,7 +251,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Send the current audio to the backend.
+   * Send the current audio to FastAPI.
    */
   sendToBackend(): void {
     this.errorMessage = '';
@@ -244,74 +272,70 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
 
     this.isProcessing = true;
+    this.clearResultsOnly();
 
     this.currentRequestSubscription = this.voiceService
-      .transcribeAndMatch(this.lastAudioBlob, this.selectedAudioName, this.selectedProvider)
+      .transcribeAndMatch(
+        this.lastAudioBlob,
+        this.selectedAudioName,
+        this.selectedProvider,
+        this.selectedOpenAiModel,
+        this.selectedTonePreset
+      )
       .subscribe({
         next: (res: TranscribeAndMatchResponse) => {
-          this.recognizedText = res.transcript || '';
-
-          this.providerRequested = res.provider_requested || '';
-          this.providerUsed = res.provider_used || '';
-          this.providerModelUsed = res.provider_model_used || '';
-          this.fallbackUsed = res.fallback_used ?? false;
-          this.fallbackReason = res.fallback_reason || '';
-          this.audioDurationSeconds = res.audio_duration_seconds ?? null;
-          this.costEstimateUsd = res.cost_estimate_usd ?? null;
-
-          this.detectedLanguage = res.detected_language || '';
-          this.languageProbability = res.language_probability ?? null;
-          this.languageMode = res.language_mode || '';
-
-          this.matchFound = res.phrase_match?.matched ?? false;
-          this.matchScore = res.phrase_match?.score ?? null;
-          this.matchedPhraseText = res.phrase_match?.matched_alias ?? '';
-          this.matchedClipExists = res.phrase_match?.clip_exists ?? false;
-          this.matchedClipUrl = this.voiceService.getFullClipUrl(res.phrase_match?.clip_url ?? null);
-
-          this.outputMode = res.output_decision?.output_mode ?? '';
-          this.outputClipUrl = this.voiceService.getFullClipUrl(res.output_decision?.output_clip_url ?? null);
-          this.outputPhraseId = res.output_decision?.output_phrase_id ?? '';
-          this.outputPhraseAlias = res.output_decision?.output_phrase_alias ?? '';
+          this.applyBackendResponse(res);
 
           this.isProcessing = false;
           this.currentRequestSubscription = null;
         },
         error: (err: unknown) => {
           console.error('Backend error:', err);
-          this.errorMessage = 'Error sending audio to the backend.';
+
+          this.errorMessage =
+            'Error sending audio to the backend. Check FastAPI terminal logs.';
+
           this.isProcessing = false;
           this.currentRequestSubscription = null;
         }
       });
   }
 
+  /**
+   * Copy backend response fields into component fields.
+   */
+  private applyBackendResponse(res: TranscribeAndMatchResponse): void {
+    this.recognizedText = res.transcript || '';
 
-  playOutputClip(): void {
-    if (!this.outputClipUrl) {
-      this.errorMessage = 'No output clip is available.';
-      return;
-    }
+    this.providerRequested = res.providerRequested || '';
+    this.providerUsed = res.providerUsed || '';
+    this.modelUsed = res.modelUsed || '';
 
-    this.stopMatchedClipPlayback();
+    this.durationSeconds = res.durationSeconds ?? null;
+    this.estimatedCostUsd = res.estimatedCostUsd ?? 0;
 
-    const audio = new Audio(this.outputClipUrl);
-    this.currentPlaybackAudio = audio;
+    this.tonePresetReturned = res.tonePreset || '';
 
-    audio.onended = () => {
-      if (this.currentPlaybackAudio === audio) {
-        this.currentPlaybackAudio = null;
-      }
-    };
+    this.detectedLanguage = res.detectedLanguage || '';
+    this.languageProbability = res.languageProbability ?? null;
 
-    audio.play().catch((err: unknown) => {
-      console.warn('Audio play error:', err);
-      this.errorMessage = 'Could not play the output clip.';
-    });
+    this.matchScore = res.score ?? null;
+
+    this.matchedClip = res.matchedClip ?? null;
+
+    this.matchedClipUrl = this.voiceService.getFullClipUrl(
+      res.matchedClip?.clipUrl ?? null
+    );
+
+    this.outputDecisionStatus = res.outputDecision?.status || '';
+    this.outputDecisionMessage = res.outputDecision?.message || '';
+    this.outputDecisionTonePreset = res.outputDecision?.tonePreset || '';
+    this.outputDecisionShouldGenerateVoice =
+      res.outputDecision?.shouldGenerateVoice ?? false;
   }
 
   /**
-   * Play the matched clip.
+   * Play the matched saved phrase clip.
    */
   playMatchedClip(): void {
     if (!this.matchedClipUrl) {
@@ -319,7 +343,7 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
-    this.stopMatchedClipPlayback();
+    this.stopCurrentAudioPlayback();
 
     const audio = new Audio(this.matchedClipUrl);
     this.currentPlaybackAudio = audio;
@@ -337,9 +361,9 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Stop any currently playing matched clip.
+   * Stop any currently playing audio clip.
    */
-  private stopMatchedClipPlayback(): void {
+  private stopCurrentAudioPlayback(): void {
     if (this.currentPlaybackAudio) {
       this.currentPlaybackAudio.pause();
       this.currentPlaybackAudio.currentTime = 0;
@@ -348,7 +372,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Toggle the preview menu.
+   * Toggle the preview menu near the native audio player.
    */
   togglePreviewMenu(event: MouseEvent): void {
     event.stopPropagation();
@@ -356,16 +380,11 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Close preview menu.
-   */
-  closePreviewMenu(): void {
-    this.previewMenuOpen = false;
-  }
-
-  /**
    * Clear current selected/recorded audio.
    */
   clearSelectedAudio(): void {
+    this.stopCurrentAudioPlayback();
+
     this.lastAudioBlob = null;
     this.selectedInputType = null;
     this.selectedAudioName = '';
@@ -375,6 +394,8 @@ export class VoiceConsoleComponent implements OnDestroy {
       URL.revokeObjectURL(this.recordedAudioUrl);
       this.recordedAudioUrl = null;
     }
+
+    this.clearResultsOnly();
   }
 
   /**
@@ -398,6 +419,33 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
+   * Clear result values without clearing selected audio.
+   */
+  private clearResultsOnly(): void {
+    this.recognizedText = '';
+
+    this.providerRequested = '';
+    this.providerUsed = '';
+    this.modelUsed = '';
+
+    this.durationSeconds = null;
+    this.estimatedCostUsd = 0;
+    this.tonePresetReturned = '';
+
+    this.detectedLanguage = '';
+    this.languageProbability = null;
+
+    this.matchScore = null;
+    this.matchedClip = null;
+    this.matchedClipUrl = null;
+
+    this.outputDecisionStatus = '';
+    this.outputDecisionMessage = '';
+    this.outputDecisionTonePreset = '';
+    this.outputDecisionShouldGenerateVoice = false;
+  }
+
+  /**
    * Cleanup when component is destroyed.
    */
   ngOnDestroy(): void {
@@ -406,10 +454,13 @@ export class VoiceConsoleComponent implements OnDestroy {
       this.currentRequestSubscription = null;
     }
 
-    this.stopMatchedClipPlayback();
+    this.stopCurrentAudioPlayback();
 
     if (this.currentRecordingStream) {
-      this.currentRecordingStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      this.currentRecordingStream
+        .getTracks()
+        .forEach((track: MediaStreamTrack) => track.stop());
+
       this.currentRecordingStream = null;
     }
 

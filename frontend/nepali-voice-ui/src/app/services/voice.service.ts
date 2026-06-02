@@ -1,114 +1,166 @@
 // frontend/nepali-voice-ui/src/app/services/voice.service.ts
+//
+// Angular service explanation:
+// This file is like a small client for your FastAPI backend.
+// Components should not hardcode HTTP request details everywhere.
+// The component calls this service, and this service calls FastAPI.
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-export type TranscriptionProvider = 'auto' | 'local' | 'openai';
+export type TranscriptionProvider = 'local_whisper' | 'openai_whisper';
 
-export interface MatchedPhrase {
-  id: string;
-  aliases: string[];
-  clip_filename: string;
-  minimum_score?: number;
-}
+export type OpenAiTranscriptionModel =
+  | 'gpt-4o-mini-transcribe'
+  | 'gpt-4o-transcribe';
 
-export interface PhraseMatchResult {
-  matched: boolean;
-  matched_phrase: MatchedPhrase | null;
-  matched_alias: string | null;
-  score: number;
-  used_minimum_score: number;
-  clip_exists: boolean;
-  clip_url: string | null;
-}
+export type TonePreset = 'original' | 'happy' | 'sad' | 'punchline';
 
-export interface OutputDecision {
-  output_mode: 'replay_clip' | 'generate_voice';
-  output_clip_url: string | null;
-  output_phrase_id: string | null;
-  output_phrase_alias: string | null;
+export interface UploadAudioResponse {
+  message: string;
+  originalFilename: string;
+  savedFilename: string;
+  contentType: string | null;
+  sizeInBytes: number;
+  savedPath: string;
 }
 
 export interface FileInfo {
-  original_filename: string;
-  saved_filename: string;
-  content_type: string | null;
-  size_in_bytes: number;
-  saved_path: string;
+  originalFilename: string;
+  savedFilename: string;
+  contentType: string | null;
+  sizeInBytes: number;
+  savedPath: string;
 }
 
-export interface TranscriptionAttempt {
-  provider: string;
-  provider_model_used: string;
-  audio_duration_seconds: number | null;
-  estimated_cost_usd: number | null;
-  transcript: string;
-  phrase_match: PhraseMatchResult;
+export interface MatchedClip {
+  id: string;
+  displayName: string;
+  matchedAlias: string;
+  clipFileName: string;
+  clipExists: boolean;
+  clipUrl: string | null;
 }
 
-export interface DebugAliasScore {
-  alias: string;
-  score: number;
-}
-
-export interface DebugPhraseScore {
-  phrase_id: string;
-  clip_filename: string;
-  best_alias: string | null;
-  best_score: number;
-  phrase_minimum_score: number;
-  passes_phrase_threshold: boolean;
-  clip_exists: boolean;
-  clip_url: string | null;
-  alias_scores: DebugAliasScore[];
+export interface OutputDecision {
+  status: 'placeholder';
+  message: string;
+  tonePreset: TonePreset | string;
+  shouldGenerateVoice: boolean;
 }
 
 export interface TranscribeAndMatchResponse {
   message: string;
+
+  providerRequested: TranscriptionProvider | string;
+  providerUsed: TranscriptionProvider | string;
+  modelUsed: string;
+
   transcript: string;
-  detected_language: string | null;
-  language_probability: number | null;
-  language_mode: string;
-  provider_requested: string;
-  provider_used: string;
-  provider_model_used: string;
-  fallback_used: boolean;
-  fallback_reason: string | null;
-  default_match_threshold: number;
-  audio_duration_seconds: number | null;
-  cost_estimate_usd: number | null;
-  phrase_match: PhraseMatchResult;
-  output_decision: OutputDecision;
-  transcription_attempts: TranscriptionAttempt[];
-  debug_scores?: DebugPhraseScore[];
-  file_info: FileInfo;
+  detectedLanguage: string | null;
+  languageProbability: number | null;
+
+  durationSeconds: number | null;
+  estimatedCostUsd: number;
+
+  tonePreset: TonePreset | string;
+
+  // Simple score only.
+  // No minimum score.
+  // No debug score.
+  // No fallback score.
+  score: number;
+
+  matchedClip: MatchedClip | null;
+  outputDecision: OutputDecision;
+
+  fileInfo: FileInfo;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class VoiceService {
+  // FastAPI backend base URL.
+  // Later, you can move this to Angular environment config.
   private baseUrl = 'http://localhost:8000';
 
   constructor(private http: HttpClient) {}
 
   /**
+   * Upload audio only.
+   *
+   * Backend endpoint:
+   * POST http://localhost:8000/upload-audio
+   */
+  uploadAudio(
+    audioFile: Blob,
+    fileName: string
+  ): Observable<UploadAudioResponse> {
+    const formData = new FormData();
+    formData.append('file', audioFile, fileName);
+
+    return this.http.post<UploadAudioResponse>(
+      `${this.baseUrl}/upload-audio`,
+      formData
+    );
+  }
+
+  /**
+   * Send audio to the backend for transcription only.
+   *
+   * Backend endpoint:
+   * POST http://localhost:8000/transcribe-audio
+   */
+  transcribeAudio(
+    audioFile: Blob,
+    fileName: string,
+    provider: TranscriptionProvider,
+    openAiModel: OpenAiTranscriptionModel,
+    tonePreset: TonePreset
+  ): Observable<TranscribeAndMatchResponse> {
+    const formData = this.buildAudioFormData(
+      audioFile,
+      fileName,
+      provider,
+      openAiModel,
+      tonePreset
+    );
+
+    return this.http.post<TranscribeAndMatchResponse>(
+      `${this.baseUrl}/transcribe-audio`,
+      formData
+    );
+  }
+
+  /**
    * Send audio to the backend for transcription + phrase matching.
    *
+   * Backend endpoint:
+   * POST http://localhost:8000/transcribe-and-match
+   *
    * IMPORTANT:
-   * The backend expects:
-   * - "file" for the uploaded audio
-   * - "provider" for provider selection
+   * The backend expects multipart form-data:
+   * - file
+   * - provider
+   * - openaiModel
+   * - tonePreset
    */
   transcribeAndMatch(
     audioFile: Blob,
     fileName: string,
-    provider: TranscriptionProvider
+    provider: TranscriptionProvider,
+    openAiModel: OpenAiTranscriptionModel,
+    tonePreset: TonePreset
   ): Observable<TranscribeAndMatchResponse> {
-    const formData = new FormData();
-    formData.append('file', audioFile, fileName);
-    formData.append('provider', provider);
+    const formData = this.buildAudioFormData(
+      audioFile,
+      fileName,
+      provider,
+      openAiModel,
+      tonePreset
+    );
 
     return this.http.post<TranscribeAndMatchResponse>(
       `${this.baseUrl}/transcribe-and-match`,
@@ -117,7 +169,13 @@ export class VoiceService {
   }
 
   /**
-   * Convert a relative backend clip URL into a full browser URL.
+   * Convert backend relative clip URL into full browser URL.
+   *
+   * Backend returns:
+   * /phrase-clips/abuiiiAbuiii.m4a
+   *
+   * Browser needs:
+   * http://localhost:8000/phrase-clips/abuiiiAbuiii.m4a
    */
   getFullClipUrl(relativeClipUrl: string | null): string | null {
     if (!relativeClipUrl) {
@@ -125,5 +183,22 @@ export class VoiceService {
     }
 
     return `${this.baseUrl}${relativeClipUrl}`;
+  }
+
+  private buildAudioFormData(
+    audioFile: Blob,
+    fileName: string,
+    provider: TranscriptionProvider,
+    openAiModel: OpenAiTranscriptionModel,
+    tonePreset: TonePreset
+  ): FormData {
+    const formData = new FormData();
+
+    formData.append('file', audioFile, fileName);
+    formData.append('provider', provider);
+    formData.append('openaiModel', openAiModel);
+    formData.append('tonePreset', tonePreset);
+
+    return formData;
   }
 }

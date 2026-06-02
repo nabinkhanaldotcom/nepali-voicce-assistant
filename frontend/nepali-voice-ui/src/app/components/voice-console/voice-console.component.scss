@@ -3,11 +3,11 @@
 /*
   This file controls the visual styling of the voice console UI.
 
-  Goals of this design:
-  1. Make the page feel more polished and app-like
-  2. Keep the existing HTML and logic unchanged
-  3. Preserve readability for long transcript/debug content
-  4. Keep the three-dot menu simple and clean
+  Goals:
+  1. Keep the page readable
+  2. Make provider/model/tone selections clear
+  3. Keep the three-dot menu near the audio preview
+  4. Avoid showing old debug/fallback UI
 */
 
 :host {
@@ -22,7 +22,7 @@
 }
 
 .voice-console {
-  max-width: 880px;
+  max-width: 920px;
   margin: 0 auto;
   padding: 24px;
   border-radius: 20px;
@@ -85,7 +85,8 @@
   margin-bottom: 12px;
 }
 
-button {
+button,
+.download-button {
   margin: 0;
   padding: 10px 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -95,6 +96,7 @@ button {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
   transition:
     transform 0.15s ease,
     background 0.15s ease,
@@ -103,13 +105,15 @@ button {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled),
+.download-button:hover {
   transform: translateY(-1px);
   background: linear-gradient(180deg, #354252, #28323f);
   border-color: rgba(130, 180, 255, 0.35);
 }
 
-button:active:not(:disabled) {
+button:active:not(:disabled),
+.download-button:active {
   transform: translateY(0);
 }
 
@@ -158,9 +162,7 @@ button:disabled {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
-/*
-  Keep the menu button right beside the native player.
-*/
+/* Keep the menu button right beside the native player. */
 .preview-menu-wrapper {
   position: relative;
   display: inline-flex;
@@ -187,7 +189,7 @@ button:disabled {
   position: absolute;
   top: 42px;
   right: 0;
-  min-width: 210px;
+  min-width: 220px;
   background: #10161d;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -208,19 +210,22 @@ button:disabled {
   background: #1d2530;
 }
 
-.provider-row {
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.form-grid label {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.provider-row label {
+  flex-direction: column;
+  gap: 8px;
   color: #ffffff;
+  font-weight: 600;
 }
 
-.provider-row select {
-  min-width: 260px;
+.form-grid select {
+  width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -230,9 +235,15 @@ button:disabled {
   outline: none;
 }
 
-.provider-row select:focus {
+.form-grid select:focus {
   border-color: rgba(110, 170, 255, 0.45);
   box-shadow: 0 0 0 3px rgba(110, 170, 255, 0.12);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px 14px;
 }
 
 textarea {
@@ -268,6 +279,20 @@ textarea:focus {
   font-weight: 600;
 }
 
+.hint {
+  color: #aeb9c5;
+  font-size: 14px;
+}
+
+.warning {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 179, 71, 0.14);
+  border: 1px solid rgba(255, 179, 71, 0.25);
+  color: #ffd79a;
+}
+
 .error {
   margin-top: 16px;
   padding: 12px 14px;
@@ -278,9 +303,7 @@ textarea:focus {
   line-height: 1.5;
 }
 
-/*
-  Make the layout still feel good on smaller screens.
-*/
+/* Make layout work on smaller screens. */
 @media (max-width: 640px) {
   :host {
     padding: 14px;
@@ -294,16 +317,6 @@ textarea:focus {
   .section {
     padding: 14px;
     border-radius: 14px;
-  }
-
-  .provider-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .provider-row select {
-    min-width: 0;
-    width: 100%;
   }
 
   .audio-inline-actions {
