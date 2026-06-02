@@ -1,14 +1,23 @@
 # backend_api/app/routes/audio.py
+#
+# This file defines audio-related API endpoints.
+#
+# Beginner explanation:
+# A route file is like a Spring Controller.
+# It should stay thin:
+# - receive HTTP request
+# - read form fields
+# - call service methods
+# - return the service result
+#
+# Real logic should stay inside app/services/*.py.
 
-# This file defines the audio-related API endpoints.
-
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, File, Form, UploadFile
 
 from app.services.audio_service import (
     save_uploaded_audio,
-    transcribe_uploaded_audio,
     transcribe_and_match_audio,
-    transcribe_and_debug_match_audio
+    transcribe_uploaded_audio,
 )
 
 router = APIRouter()
@@ -18,62 +27,70 @@ router = APIRouter()
 async def upload_audio(file: UploadFile = File(...)):
     """
     Save an uploaded audio file and return file metadata.
+
+    This endpoint does NOT transcribe.
+    It is useful for testing file upload by itself.
     """
     result = await save_uploaded_audio(file)
 
     return {
         "message": "Audio uploaded successfully",
-        **result
+        **result,
     }
 
 
 @router.post("/transcribe-audio")
 async def transcribe_audio(
     file: UploadFile = File(...),
-    provider: str = Form("auto")
+    provider: str = Form("local_whisper"),
+    openaiModel: str = Form("gpt-4o-mini-transcribe"),
+    tonePreset: str = Form("original"),
 ):
     """
-    Save uploaded audio and return transcription only.
+    Save uploaded audio and return transcription result.
 
-    provider:
-    - auto
-    - local
-    - openai
+    Provider is manual only:
+    - local_whisper
+    - openai_whisper
+
+    No auto provider.
+    No score-based fallback.
     """
-    result = await transcribe_uploaded_audio(file, provider=provider)
+    result = await transcribe_uploaded_audio(
+        file=file,
+        provider=provider,
+        openai_model=openaiModel,
+        tone_preset=tonePreset,
+    )
+
     return result
 
 
 @router.post("/transcribe-and-match")
 async def transcribe_and_match(
     file: UploadFile = File(...),
-    provider: str = Form("auto")
+    provider: str = Form("local_whisper"),
+    openaiModel: str = Form("gpt-4o-mini-transcribe"),
+    tonePreset: str = Form("original"),
 ):
     """
-    Save uploaded audio, transcribe it, and return the best phrase match.
+    Save uploaded audio, transcribe it, and check phrase aliases.
 
-    provider:
-    - auto
-    - local
-    - openai
+    This is the main endpoint Angular should call.
+
+    Provider is manual only:
+    - local_whisper
+    - openai_whisper
+
+    OpenAI model is only used when provider=openai_whisper:
+    - gpt-4o-mini-transcribe
+    - gpt-4o-transcribe
     """
-    result = await transcribe_and_match_audio(file, provider=provider)
-    return result
+    result = await transcribe_and_match_audio(
+        file=file,
+        provider=provider,
+        openai_model=openaiModel,
+        tone_preset=tonePreset,
+    )
 
-
-@router.post("/transcribe-and-debug-match")
-async def transcribe_and_debug_match(
-    file: UploadFile = File(...),
-    provider: str = Form("auto")
-):
-    """
-    Save uploaded audio, transcribe it, and return debug scoring
-    for all phrases.
-
-    provider:
-    - auto
-    - local
-    - openai
-    """
-    result = await transcribe_and_debug_match_audio(file, provider=provider)
     return result

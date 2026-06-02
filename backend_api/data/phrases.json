@@ -1,24 +1,28 @@
 [
   {
-    "id": "phrase_1",
+    "id": "tesho-gare-kasto-hola",
+    "displayName": "त्यसो गरे कस्तो होला",
     "aliases": [
       "त्यसो गरे कस्तो होला",
+      "तेसो गरे कस्तो होला",
       "teso gare kasto hola",
       "tesho gare kasho hola",
       "tesho-gare kasho hola"
     ],
-    "clip_filename": "teshoGareKashoHola1.m4a",
-    "minimum_score": 70
+    "clipFileName": "teshoGareKashoHola1.m4a"
   },
   {
-    "id": "phrase_2",
+    "id": "abuii-abuii",
+    "displayName": "अभुई अभुई",
     "aliases": [
       "आबुई, आबुई",
       "अभुई अभुई",
+      "अभुई",
+      "abui abui",
+      "abhui abhui",
       "abuii abuii",
-      "abui abui"
+      "abuii"
     ],
-    "clip_filename": "abuiiiAbuiii.m4a",
-    "minimum_score": 60
+    "clipFileName": "abuiiiAbuiii.m4a"
   }
 ]
