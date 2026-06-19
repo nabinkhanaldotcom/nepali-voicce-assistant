@@ -5,7 +5,7 @@
 # What this file does:
 # 1. Load phrase data from backend_api/data/phrases.json
 # 2. Normalize transcript text and aliases
-# 3. Check whether transcript contains any known alias
+# 3. Check whether the transcript contains any known alias
 # 4. Return matched clip metadata if an alias is found
 # 5. Return one simple score number for visibility
 #
@@ -19,9 +19,18 @@
 # Phrase matching is still kept because it powers:
 # - matchedClip response
 # - Play Match Clip button in Angular
+#
+# Phase 3A improvement:
+# This version improves matching by normalizing common Nepali/roman variants.
+# It still keeps the matching rule simple:
+# - if a normalized alias is contained in the normalized transcript, return a match
+# - otherwise matchedClip is null
+#
+# The score is still display-only. It does not decide fallback.
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -40,18 +49,61 @@ PHRASE_CLIPS_DIR.mkdir(parents=True, exist_ok=True)
 PHRASES_JSON_PATH = BACKEND_ROOT / "data" / "phrases.json"
 
 
-# Known confusion replacements.
+# Known word replacements.
 #
-# Why this exists:
-# Nepali speech-to-text may produce slightly different spellings.
-# We convert common variants into the same internal token so matching is easier.
-CONFUSION_REPLACEMENTS = {
+# Beginner explanation:
+# Speech-to-text may write the same sound in different ways.
+# For example:
+# - अभुई
+# - आबुई
+# - abui
+# - abhui
+#
+# For phrase matching, we convert those variations into one internal word:
+# ABUI
+#
+# This is not full translation or transliteration.
+# It is just a small project-specific normalization dictionary.
+KNOWN_WORD_REPLACEMENTS = {
+    # अभुई / आबुई phrase variants
     "आबुई": "ABUI",
+    "आबुइ": "ABUI",
     "अभुई": "ABUI",
+    "अभुइ": "ABUI",
     "अबुई": "ABUI",
+    "अबुइ": "ABUI",
     "abuii": "ABUI",
     "abui": "ABUI",
     "abhui": "ABUI",
+    "abhuii": "ABUI",
+
+    # त्यसो / तेसो variants
+    "त्यसो": "TESO",
+    "तेसो": "TESO",
+    "teso": "TESO",
+    "tesho": "TESO",
+    "tyaso": "TESO",
+    "tesso": "TESO",
+
+    # गरे variants
+    "गरे": "GARE",
+    "गरें": "GARE",
+    "gare": "GARE",
+    "garey": "GARE",
+
+    # कस्तो / काशो variants
+    "कस्तो": "KASTO",
+    "कस्तोे": "KASTO",
+    "काशो": "KASTO",
+    "कसो": "KASTO",
+    "kasto": "KASTO",
+    "kasho": "KASTO",
+    "kaso": "KASTO",
+
+    # होला variants
+    "होला": "HOLA",
+    "hola": "HOLA",
+    "holaa": "HOLA",
 }
 
 
@@ -117,10 +169,12 @@ def validate_phrase_record(phrase: dict[str, Any]) -> None:
         raise ValueError("Each phrase entry must be a JSON object.")
 
     phrase_id = phrase.get("id")
+
     if not phrase_id:
         raise ValueError("Each phrase must have an 'id' field.")
 
     aliases = phrase.get("aliases")
+
     if not isinstance(aliases, list) or len(aliases) == 0:
         raise ValueError(f"Phrase '{phrase_id}' must have a non-empty aliases list.")
 
@@ -136,34 +190,82 @@ def validate_phrase_record(phrase: dict[str, Any]) -> None:
         )
 
 
+def remove_invisible_characters(text: str) -> str:
+    """
+    Remove invisible characters that commonly cause string matching problems.
+
+    Example:
+    Sometimes text can look like:
+        अभुई अभुई
+
+    but secretly contain zero-width characters.
+    That makes direct string matching fail.
+
+    This function removes those hidden characters.
+    """
+    return re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text or "")
+
+
 def normalize_text(text: str) -> str:
     """
     Light text normalization.
 
     This does:
+    - Unicode normalization
+    - remove invisible characters
     - lowercase
+    - replace Nepali danda punctuation with spaces
     - remove punctuation
     - collapse repeated spaces
 
     This is not heavy Nepali NLP.
     It is just enough for the current phrase matching milestone.
     """
-    cleaned_text = (text or "").lower().strip()
+    cleaned_text = text or ""
+
+    # Normalize Unicode so visually similar text has a better chance to compare equal.
+    cleaned_text = unicodedata.normalize("NFKC", cleaned_text)
+
+    # Remove hidden characters.
+    cleaned_text = remove_invisible_characters(cleaned_text)
+
+    # Lowercase helps romanized aliases like ABUI / abui / Abui.
+    cleaned_text = cleaned_text.lower().strip()
+
+    # Nepali danda marks are sentence punctuation.
+    cleaned_text = cleaned_text.replace("।", " ")
+    cleaned_text = cleaned_text.replace("॥", " ")
+
+    # Remove punctuation but keep letters/numbers/spaces in all languages.
     cleaned_text = re.sub(r"[^\w\s]", " ", cleaned_text, flags=re.UNICODE)
+
+    # Collapse extra spaces.
     cleaned_text = re.sub(r"\s+", " ", cleaned_text).strip()
+
     return cleaned_text
 
 
-def apply_confusion_normalization(text: str) -> str:
+def apply_known_word_normalization(text: str) -> str:
     """
-    Replace known confusing spellings with one internal canonical form.
+    Replace known Nepali/roman variants with one canonical internal token.
+
+    Example:
+        अभुई अभुई -> ABUI ABUI
+        abui abui -> ABUI ABUI
+
+    This makes matching more stable.
     """
-    normalized = text or ""
+    normalized = normalize_text(text)
 
-    for source_text, replacement_text in CONFUSION_REPLACEMENTS.items():
-        normalized = normalized.replace(source_text.lower(), replacement_text.lower())
+    # We split by space so replacements happen word-by-word.
+    # This avoids replacing letters inside unrelated words.
+    words = normalized.split()
+    converted_words: list[str] = []
 
-    return normalized
+    for word in words:
+        converted_words.append(KNOWN_WORD_REPLACEMENTS.get(word, word))
+
+    return " ".join(converted_words)
 
 
 def build_clip_url(clip_file_name: str) -> str:
@@ -180,8 +282,9 @@ def alias_is_contained_in_transcript(transcript: str, alias: str) -> bool:
     """
     The simplified phrase matching rule.
 
-    A phrase matches only when an alias is contained in the transcript
-    after light normalization.
+    A phrase matches when:
+    1. the normalized alias is contained in the normalized transcript, OR
+    2. the known-word-normalized alias is contained in the known-word-normalized transcript
 
     This avoids threshold/minimum-score confusion.
     """
@@ -194,10 +297,13 @@ def alias_is_contained_in_transcript(transcript: str, alias: str) -> bool:
     if normalized_alias in normalized_transcript:
         return True
 
-    confusion_transcript = apply_confusion_normalization(normalized_transcript)
-    confusion_alias = apply_confusion_normalization(normalized_alias)
+    canonical_transcript = apply_known_word_normalization(transcript)
+    canonical_alias = apply_known_word_normalization(alias)
 
-    return confusion_alias in confusion_transcript
+    if not canonical_transcript or not canonical_alias:
+        return False
+
+    return canonical_alias in canonical_transcript
 
 
 def score_transcript_against_alias(transcript: str, alias: str) -> float:
@@ -219,13 +325,11 @@ def score_transcript_against_alias(transcript: str, alias: str) -> float:
     if not normalized_transcript or not normalized_alias:
         return 0.0
 
-    confusion_transcript = apply_confusion_normalization(normalized_transcript)
-    confusion_alias = apply_confusion_normalization(normalized_alias)
+    canonical_transcript = apply_known_word_normalization(transcript)
+    canonical_alias = apply_known_word_normalization(alias)
 
     direct_normal_match = 100.0 if normalized_alias in normalized_transcript else 0.0
-    direct_confusion_match = (
-        100.0 if confusion_alias in confusion_transcript else 0.0
-    )
+    direct_canonical_match = 100.0 if canonical_alias in canonical_transcript else 0.0
 
     normal_score = max(
         fuzz.ratio(normalized_transcript, normalized_alias),
@@ -233,18 +337,18 @@ def score_transcript_against_alias(transcript: str, alias: str) -> float:
         fuzz.token_set_ratio(normalized_transcript, normalized_alias),
     )
 
-    confusion_score = max(
-        fuzz.ratio(confusion_transcript, confusion_alias),
-        fuzz.partial_ratio(confusion_transcript, confusion_alias),
-        fuzz.token_set_ratio(confusion_transcript, confusion_alias),
+    canonical_score = max(
+        fuzz.ratio(canonical_transcript, canonical_alias),
+        fuzz.partial_ratio(canonical_transcript, canonical_alias),
+        fuzz.token_set_ratio(canonical_transcript, canonical_alias),
     )
 
     return float(
         max(
             direct_normal_match,
-            direct_confusion_match,
+            direct_canonical_match,
             normal_score,
-            confusion_score,
+            canonical_score,
         )
     )
 

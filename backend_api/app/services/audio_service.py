@@ -210,7 +210,7 @@ def get_audio_duration_seconds(saved_path: str) -> float | None:
         container = av.open(saved_path)
 
         if container.duration is not None:
-            return float(container.duration / av.time_base)
+            return float(container.duration * av.time_base)
 
         audio_stream = next(
             (stream for stream in container.streams if stream.type == "audio"),

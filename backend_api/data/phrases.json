@@ -5,8 +5,15 @@
     "aliases": [
       "त्यसो गरे कस्तो होला",
       "तेसो गरे कस्तो होला",
+      "त्यसो गरे काशो होला",
+      "तेसो गरे काशो होला",
+      "त्यसो गरे कसो होला",
+      "तेसो गरे कसो होला",
       "teso gare kasto hola",
+      "tesho gare kasto hola",
       "tesho gare kasho hola",
+      "tyaso gare kasto hola",
+      "teso gare kaso hola",
       "tesho-gare kasho hola"
     ],
     "clipFileName": "teshoGareKashoHola1.m4a"
@@ -15,13 +22,22 @@
     "id": "abuii-abuii",
     "displayName": "अभुई अभुई",
     "aliases": [
-      "आबुई, आबुई",
+      "आबुई आबुई",
+      "आबुइ आबुइ",
       "अभुई अभुई",
+      "अभुइ अभुइ",
+      "अबुई अबुई",
+      "अबुइ अबुइ",
+      "आबुई",
       "अभुई",
+      "अबुई",
       "abui abui",
       "abhui abhui",
       "abuii abuii",
-      "abuii"
+      "abhuii abhuii",
+      "abuii",
+      "abui",
+      "abhui"
     ],
     "clipFileName": "abuiiiAbuiii.m4a"
   }
