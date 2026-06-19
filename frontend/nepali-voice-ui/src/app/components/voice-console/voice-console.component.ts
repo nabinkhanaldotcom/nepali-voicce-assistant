@@ -11,6 +11,7 @@
 // - play matched clip
 
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, NgZone, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -292,13 +293,63 @@ export class VoiceConsoleComponent implements OnDestroy {
         error: (err: unknown) => {
           console.error('Backend error:', err);
 
-          this.errorMessage =
-            'Error sending audio to the backend. Check FastAPI terminal logs.';
+          // Before this change, Angular always showed a generic message.
+          // Now we try to show the real FastAPI error detail if the backend sent one.
+          //
+          // Example FastAPI error response:
+          // {
+          //   "detail": "OPENAI_API_KEY is not set on the backend server."
+          // }
+          this.errorMessage = this.buildBackendErrorMessage(err);
 
           this.isProcessing = false;
           this.currentRequestSubscription = null;
         }
       });
+  }
+
+  /**
+   * Build a useful error message from Angular/HTTP/backend errors.
+   *
+   * Beginner explanation:
+   * When FastAPI throws HTTPException, the browser usually receives a response like:
+   *
+   * {
+   *   "detail": "Some useful backend error message"
+   * }
+   *
+   * Angular wraps that response inside HttpErrorResponse.
+   * This helper method extracts the useful backend message and shows it in the UI.
+   */
+  private buildBackendErrorMessage(err: unknown): string {
+    if (err instanceof HttpErrorResponse) {
+      const backendDetail = err.error?.detail;
+
+      if (typeof backendDetail === 'string') {
+        return backendDetail;
+      }
+
+      // FastAPI validation errors can sometimes return detail as an array.
+      // Example: missing field, invalid form field, wrong type, etc.
+      if (Array.isArray(backendDetail)) {
+        return backendDetail
+          .map((item: unknown) => JSON.stringify(item))
+          .join(' | ');
+      }
+
+      // Sometimes the backend may return plain text instead of JSON.
+      if (typeof err.error === 'string') {
+        return err.error;
+      }
+
+      return `Backend request failed with status ${err.status}. Check FastAPI terminal logs.`;
+    }
+
+    if (err instanceof Error) {
+      return err.message;
+    }
+
+    return 'Error sending audio to the backend. Check FastAPI terminal logs.';
   }
 
   /**
