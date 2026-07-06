@@ -1,0 +1,145 @@
+Normal RVC Dataset Export Report
+=================================
+Export root: C:\AI app\nepali-voicce-assistant\backend_api\data\voice_dataset\exports\rvc_normal
+Total source clips: 135
+Exported clips: 135
+Clips with warnings: 135
+Total source duration seconds: 997956001000000.00
+Total source duration minutes: 16632600016666.67
+
+Warnings:
+- cleaned_voice_only/s1 e1/10_aba yo madan bahadur le gabisha adakshya kati din.mp3: Long clip: 6022494000000.00s.
+- cleaned_voice_only/s1 e1/11_ma gabisha adakshya vaye vane ta.mp3: Long clip: 6302766000000.00s.
+- cleaned_voice_only/s1 e1/12_switzerland vanne kasto cha ha.mp3: Long clip: 1714558000000.00s.
+- cleaned_voice_only/s1 e1/13_abuii abuii.mp3: Long clip: 2823039000000.00s.
+- cleaned_voice_only/s1 e1/14_abuii darako chaina.mp3: Long clip: 3607619000000.00s.
+- cleaned_voice_only/s1 e1/15_darako chaina darako chaina abuii.mp3: Long clip: 5700000000000.00s.
+- cleaned_voice_only/s1 e1/16_ja vaat basaldai gaar.mp3: Long clip: 8501088000000.00s.
+- cleaned_voice_only/s1 e1/17_yetro yetro vada ma char mana jati basal.mp3: Long clip: 2206984000000.00s.
+- cleaned_voice_only/s1 e1/18_hai ani gundruk pakauna ma aauchu ja.mp3: Long clip: 3515057000000.00s.
+- cleaned_voice_only/s1 e1/19_hyateri hario pario vako bela vidanta garnu parcha ne.mp3: Long clip: 9512018000000.00s.
+- cleaned_voice_only/s1 e1/1_dhadali lee jitya vaan na dhadali le.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e1/20_hernus tapai haru le j garnu vako cha yo desh ko lagi.mp3: Long clip: 10002812000000.00s.
+- cleaned_voice_only/s1 e1/20_tapai haru ladnush hami pane kaadh ma kaadh milayera aaucham.mp3: Long clip: 4318639000000.00s.
+- cleaned_voice_only/s1 e1/21_tapai haru le j garnu vako ragat bagaunu vako hamro lagi.mp3: Long clip: 4009070000000.00s.
+- cleaned_voice_only/s1 e1/22_a maile samjhe.mp3: Long clip: 9306122000000.00s.
+- cleaned_voice_only/s1 e1/23_a tapai le pardaina vanera huncha.mp3: Long clip: 9203401000000.00s.
+- cleaned_voice_only/s1 e1/24_la pakhnush ma tapai haru lai seto khashi katera khowchu.mp3: Long clip: 9514603000000.00s.
+- cleaned_voice_only/s1 e1/2_dhadali gare ra ta kasta kasta.mp3: Long clip: 8886395000000.00s.
+- cleaned_voice_only/s1 e1/3_heraula heraula tero you churii fuir.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e1/4_tali ma tero ghar bata pane.mp3: Long clip: 5080317000000.00s.
+- cleaned_voice_only/s1 e1/5_a ma yo jit kasko vanchu dhadali ko vaan hai.mp3: Long clip: 5900000000000.00s.
+- cleaned_voice_only/s1 e1/5_ma yo jit kasko vanchu dhadali ko vaan hai clear.mp3: Long clip: 8221995000000.00s.
+- cleaned_voice_only/s1 e1/6_boru ma gabisha adakshya vako vaye testo hudaina theyo.mp3: Long clip: 6714535000000.00s.
+- cleaned_voice_only/s1 e1/7_maobadi le testo garne himmat kaha bata garcha ra.mp3: Long clip: 8016327000000.00s.
+- cleaned_voice_only/s1 e1/8_na gham vanya cha na pani vanya cha.mp3: Long clip: 9204308000000.00s.
+- cleaned_voice_only/s1 e1/9_teshai vandya po ta.mp3: Long clip: 2010522000000.00s.
+- cleaned_voice_only/s1 e2/10_dekhis ta kasto buddhi raicha mero.mp3: Long clip: 8419229000000.00s.
+- cleaned_voice_only/s1 e2/11_hoina teti saman lerauna kati ber lako.mp3: Long clip: 3217868000000.00s.
+- cleaned_voice_only/s1 e2/12_hijo beluka yo mashu ma jyan mara khurshani ra.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e2/13_jyan mara khurshani surshani sapai bagayera jancha kya.mp3: Long clip: 3886349000000.00s.
+- cleaned_voice_only/s1 e2/14_a sabun tito huncha ra.mp3: Long clip: 8620227000000.00s.
+- cleaned_voice_only/s1 e2/15_a hosh pani le nai tin char choti.mp3: Long clip: 7005714000000.00s.
+- cleaned_voice_only/s1 e2/16_kasto kaat mar ko bayahak kurai gardaina yo ta.mp3: Long clip: 3911474000000.00s.
+- cleaned_voice_only/s1 e2/17_tero gala ma pittitita garera thappad ka thappad.mp3: Long clip: 7005986000000.00s.
+- cleaned_voice_only/s1 e2/18_mushu mundhre din vare dulera hidcha.mp3: Long clip: 5018413000000.00s.
+- cleaned_voice_only/s1 e2/19_a madan bahadur aafu le vanya jasto hudaina raicha.mp3: Long clip: 9515556000000.00s.
+- cleaned_voice_only/s1 e2/1_timro ra mero eauta jaruri kura paryo ne.mp3: Long clip: 5012789000000.00s.
+- cleaned_voice_only/s1 e2/20_ma ta tulu tulu herera bashe rahe sugna pane payena.mp3: Long clip: 9721497000000.00s.
+- cleaned_voice_only/s1 e2/21_vaag pugdaina temi eklai khau.mp3: Long clip: 3518730000000.00s.
+- cleaned_voice_only/s1 e2/22_ho chodna parcha ma pane choddinchu yo daat hunjel khanchu.mp3: Long clip: 8007982000000.00s.
+- cleaned_voice_only/s1 e2/23_manche ta marera jancha yo khashi.mp3: Long clip: 5919002000000.00s.
+- cleaned_voice_only/s1 e2/24_j vaye pane tyag garna sikna parcha.mp3: Long clip: 7017506000000.00s.
+- cleaned_voice_only/s1 e2/25_a tesho chai vane na hala k.mp3: Long clip: 2915374000000.00s.
+- cleaned_voice_only/s1 e2/26_maile pane hijo ek tukra puchhar khako thaue ne.mp3: Long clip: 7110159000000.00s.
+- cleaned_voice_only/s1 e2/27_maile jhatta eauta kura samjhe k.mp3: Long clip: 9514603000000.00s.
+- cleaned_voice_only/s1 e2/29_kuching kuching.mp3: Long clip: 3518458000000.00s.
+- cleaned_voice_only/s1 e2/2_vitrai gayera kura garau na tesho gare kasho hola.mp3: Long clip: 3201678000000.00s.
+- cleaned_voice_only/s1 e2/30_k garya temi haru le testo pane garnu huncha.mp3: Long clip: 5322132000000.00s.
+- cleaned_voice_only/s1 e2/32_maobadi le ne khoji ra cha police le ne khoji racha.mp3: Long clip: 9684535000000.00s.
+- cleaned_voice_only/s1 e2/33_yetro thulo sansar ma ja gayera bashe pane vo ne.mp3: Long clip: 6011338000000.00s.
+- cleaned_voice_only/s1 e2/34_rajniti ma temi ra ma satru vaye pane.mp3: Long clip: 2900658000000.00s.
+- cleaned_voice_only/s1 e2/35_chimeko hisab ma timro sapppi vanda najik ko manche ma hu.mp3: Long clip: 4500000000000.00s.
+- cleaned_voice_only/s1 e2/36_yesto bela eauta chemeki le arko chemeki lai madat.mp3: Long clip: 25500000000000.00s.
+- cleaned_voice_only/s1 e2/3_aba ladai garera aaka re.mp3: Long clip: 8319637000000.00s.
+- cleaned_voice_only/s1 e2/4_timro khashi lai ne din aako raicha.mp3: Long clip: 4308526000000.00s.
+- cleaned_voice_only/s1 e2/5_ho yo vauju le chai kura bujchen k.mp3: Long clip: 3110839000000.00s.
+- cleaned_voice_only/s1 e2/6_yo madan bahadur ta k vako yo.mp3: Long clip: 6901905000000.00s.
+- cleaned_voice_only/s1 e2/7_la hin babu tero din yeti nai lekhya raicha.mp3: Long clip: 8208798000000.00s.
+- cleaned_voice_only/s1 e2/8_tara hernush desh ko lagi ladi hidne lai.mp3: Long clip: 6910023000000.00s.
+- cleaned_voice_only/s1 e2/9_ls safa ta maile garna sakdina eklai le.mp3: Long clip: 5018413000000.00s.
+- cleaned_voice_only/s1 e5/10_gai bhaisi ko umer ne.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/11_adabaishe vai shakya thaye temi haru ko gai vaisi ko kriya.mp3: Long clip: 9285941000000.00s.
+- cleaned_voice_only/s1 e5/12_aajkal dherai santan janmyo vaan dekhin.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/13_koi poila gaye hoi hide.mp3: Long clip: 1478322000000.00s.
+- cleaned_voice_only/s1 e5/14_ you madan bahadur ko oodni ochaune.mp3: Long clip: 9509637000000.00s.
+- cleaned_voice_only/s1 e5/15_la sappi thok ssaman yesha cha.mp3: Long clip: 5713379000000.00s.
+- cleaned_voice_only/s1 e5/16_ani timro yo lampat ani yo odni ochaune.mp3: Long clip: 8975646000000.00s.
+- cleaned_voice_only/s1 e5/17_ani teshpachi yo thaal kachaura.mp3: Long clip: 10019093000000.00s.
+- cleaned_voice_only/s1 e5/18_temi le ta bhado matra chodya theyau.mp3: Long clip: 7601497000000.00s.
+- cleaned_voice_only/s1 e5/19_das barsha samma poko parera rakhda rakhda sukyo ne.mp3: Long clip: 7621814000000.00s.
+- cleaned_voice_only/s1 e5/1_kasto kach kach gare rako bakhra ko puchhar khako jasto.mp3: Long clip: 4522086000000.00s.
+- cleaned_voice_only/s1 e5/20_hera hai madanbahadur mero kaan bata haat.mp3: Long clip: 2911338000000.00s.
+- cleaned_voice_only/s1 e5/22_timro haat jhika madan bahadur.mp3: Long clip: 8601814000000.00s.
+- cleaned_voice_only/s1 e5/23_a mali dharma putra palna lagnu vako.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/24_karyala ma gayera kagaj patra pane.mp3: Long clip: 5488027000000.00s.
+- cleaned_voice_only/s1 e5/25_ma pane mero thaar paribartan garera gurung rakchu.mp3: Long clip: 5613515000000.00s.
+- cleaned_voice_only/s1 e5/26_usho vaye yesho garau na ta.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/27_i love hari bahadur teshai le.mp3: Long clip: 5370703000000.00s.
+- cleaned_voice_only/s1 e5/28_a budi aba naruda kasho hola.mp3: Long clip: 6516372000000.00s.
+- cleaned_voice_only/s1 e5/29_ma timro ghar ma basdina aba ma.mp3: Long clip: 5119637000000.00s.
+- cleaned_voice_only/s1 e5/2_mashu mashu alikati hami pane lina paryo k.mp3: Long clip: 4014694000000.00s.
+- cleaned_voice_only/s1 e5/30_a budi hami pane waha lai kei deyera.mp3: Long clip: 5016576000000.00s.
+- cleaned_voice_only/s1 e5/31_a aafno kaam ta aafai garnu pare halcha ne.mp3: Long clip: 10007438000000.00s.
+- cleaned_voice_only/s1 e5/32_a namaskar hai sasu aama sashura ba.mp3: Long clip: 5205624000000.00s.
+- cleaned_voice_only/s1 e5/33_a darshan ba aba dekhi aauda kheri.mp3: Long clip: 10013741000000.00s.
+- cleaned_voice_only/s1 e5/34_a ekchin ekchin eauta emergency.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/35_kure rakhnu hai tesho gare kasho hola.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/36_kul debta dhog dhog mero sasu sashura.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/37_jhoot bolera mero madat gardinu paryo.mp3: Long clip: 3919433000000.00s.
+- cleaned_voice_only/s1 e5/38_k gardinu paryo vandekhin ma tapaiko ardhali hoina.mp3: Long clip: 9405147000000.00s.
+- cleaned_voice_only/s1 e5/39_bihera sasu sasura aaunu vako cha.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/3_ biralo le khayo ke.mp3: Long clip: 1101043000000.00s.
+- cleaned_voice_only/s1 e5/40_baseko vandinu na hai vaneko mannu vako chaina.mp3: Long clip: 6987937000000.00s.
+- cleaned_voice_only/s1 e5/40_k garne ta aba.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/41_baal ma bashya manche huncha tesho gare kasho hola.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/42_a tyo hame yo ghar baal ma deko k.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/43_duita bhura haru matra kina basnu.mp3: Long clip: 9926531000000.00s.
+- cleaned_voice_only/s1 e5/44_bashe rane jau vitrai jau hehe hehe.mp3: Long clip: 9999365000000.00s.
+- cleaned_voice_only/s1 e5/4_saag ra sisno khayeko besha aananda maan le.mp3: Long clip: 9400907000000.00s.
+- cleaned_voice_only/s1 e5/5_ani bhansha ma terto thulo kukhura katera khada.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/6_chokta tanda kheri temi haru lai paap lagcha.mp3: Long clip: 2079048000000.00s.
+- cleaned_voice_only/s1 e5/7_temi samaj bolau, tyo samaj lai hami le pane chinya cha.mp3: Long clip: 9508299000000.00s.
+- cleaned_voice_only/s1 e5/8_laure bhai le jasti ijjat garera bolaunu parcha.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e5/9_mali ta yo gau ma yo laure bhai le jasto.mp3: Long clip: 9488889000000.00s.
+- cleaned_voice_only/s1 e6/10_mero chemeki cha ne tyo madan bahadur vanne.mp3: Long clip: 8811791000000.00s.
+- cleaned_voice_only/s1 e6/11_tyo sanga temi le beha garchu vandau na.mp3: Long clip: 4105624000000.00s.
+- cleaned_voice_only/s1 e6/12_sachekai beha garne hoina kya.mp3: Long clip: 7506621000000.00s.
+- cleaned_voice_only/s1 e6/13_a sali nani tyo kisne.mp3: Long clip: 8109388000000.00s.
+- cleaned_voice_only/s1 e6/14_tesho vanera huncha vinaju ko lagi.mp3: Long clip: 10015964000000.00s.
+- cleaned_voice_only/s1 e6/15_tyo galyo tyo galyo aba.mp3: Long clip: 9714739000000.00s.
+- cleaned_voice_only/s1 e6/16_tyo galyo aba tesko ghar pane jalyo.mp3: Long clip: 5122812000000.00s.
+- cleaned_voice_only/s1 e6/17_u tyo tyo duita glass pane dau na.mp3: Long clip: 5022857000000.00s.
+- cleaned_voice_only/s1 e6/18_jabar jasti fasha cha re maile.mp3: Long clip: 10022948000000.00s.
+- cleaned_voice_only/s1 e6/19_ho ma haam falera mardinchu.mp3: Long clip: 9716508000000.00s.
+- cleaned_voice_only/s1 e6/1_baa le taha paunu vayena hola a sasura budo.mp3: Long clip: 7411156000000.00s.
+- cleaned_voice_only/s1 e6/20_ekai chin ma huncha huncha vanche.mp3: Long clip: 10012245000000.00s.
+- cleaned_voice_only/s1 e6/21_chup hai chup aayo a babu kishna.mp3: Long clip: 8504580000000.00s.
+- cleaned_voice_only/s1 e6/22_gunda gunda tapai ta ramri kt.mp3: Long clip: 9017143000000.00s.
+- cleaned_voice_only/s1 e6/23_tyo ta ho mali tahacha.mp3: Long clip: 10031020000000.00s.
+- cleaned_voice_only/s1 e6/24_yesto yo ganaune jhol khanchan.mp3: Long clip: 8987188000000.00s.
+- cleaned_voice_only/s1 e6/25_usko swasni balatkar ma pareki.mp3: Long clip: 10012744000000.00s.
+- cleaned_voice_only/s1 e6/26_aba balatkar ma pareki swasni lai.mp3: Long clip: 6508163000000.00s.
+- cleaned_voice_only/s1 e6/27_mali ta kaihale kahi ta.mp3: Long clip: 9512880000000.00s.
+- cleaned_voice_only/s1 e6/28_u mero sali bani behora sil swavav.mp3: Long clip: 10006848000000.00s.
+- cleaned_voice_only/s1 e6/29_aangsha magda kheri bato le.mp3: Long clip: 9121678000000.00s.
+- cleaned_voice_only/s1 e6/2_ramro kotha baal ma deya ramro paisa aaucha k.mp3: Long clip: 5019592000000.00s.
+- cleaned_voice_only/s1 e6/30_ho tyo pane line tesho gare kasho hola.mp3: Long clip: 9513379000000.00s.
+- cleaned_voice_only/s1 e6/31_ho tyo pane line tesho gare kasho hola.mp3: Long clip: 9510340000000.00s.
+- cleaned_voice_only/s1 e6/32_ani usko naam ma gayera voli palta pas gardine_original_clear.m4a: Long clip: 9810000000000.00s.
+- cleaned_voice_only/s1 e6/3_yo kura yete mai simit rakhau hai.mp3: Long clip: 10010431000000.00s.
+- cleaned_voice_only/s1 e6/4_na vannush hai ulai na vannu hai.mp3: Long clip: 10016689000000.00s.
+- cleaned_voice_only/s1 e6/5_laure vai le bihenai alikati tharra dinu vayecha.mp3: Long clip: 7004172000000.00s.
+- cleaned_voice_only/s1 e6/6_temi chai dui char din basdau na.mp3: Long clip: 7208889000000.00s.
+- cleaned_voice_only/s1 e6/8_ma sanga thulo karyakram nai cha.mp3: Long clip: 4009297000000.00s.
+- cleaned_voice_only/s1 e6/9_tesho navannush na tapai_crying.mp3: Long clip: 8608435000000.00s.
