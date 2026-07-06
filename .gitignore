@@ -43,3 +43,7 @@ frontend/nepali-voice-ui/.vscode/
 # -------------------------
 frontend/nepali-voice-ui/.env
 backend_api/.env
+
+
+backend_api/package-lock.json
+frontend/package-lock.json
