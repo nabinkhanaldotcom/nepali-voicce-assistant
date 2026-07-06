@@ -1,4 +1,4 @@
-# backend_api/scripts/export_normal_rvc_dataset.py
+# backend_api/scripts/prepare_voice_dataset.py
 #
 # This script prepares your first "normal tone" voice-conversion dataset.
 #
@@ -10,15 +10,15 @@
 # It only takes your clean short uncle voice clips and exports them into a
 # simple RVC-friendly folder:
 #
-# data/voice_dataset/exports/rvc_normal/wavs/
+#   data/voice_dataset/exports/rvc_normal/wavs/
 #
 # Your current local source folder is expected to look like:
 #
-# data/voice_dataset/cleaned_voice_only/
-#   s1 e1/
-#   s1 e2/
-#   s1 e5/
-#   s1 e6/
+#   data/voice_dataset/cleaned_voice_only/
+#     s1 e1/
+#     s1 e2/
+#     s1 e5/
+#     s1 e6/
 #
 # Inside those folders you already have short clean clips.
 #
@@ -28,10 +28,20 @@
 # Why convert to WAV?
 # RVC-style tools usually work best when the dataset is clean and consistent.
 # This script uses ffmpeg to convert each source clip into:
-# - WAV
-# - mono
-# - 44100 Hz
-# - 16-bit PCM
+#
+#   - WAV
+#   - mono
+#   - 44100 Hz
+#   - 16-bit PCM
+#
+# Important fix:
+# The previous version used PyAV for duration and produced huge wrong values
+# like 6022494000000 seconds for a 6-second clip.
+#
+# This version uses:
+#
+#   - ffprobe for duration and sample rate
+#   - ffmpeg for converting audio to WAV
 
 from __future__ import annotations
 
@@ -44,7 +54,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-import av
 
 # backend_api folder
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -53,7 +62,6 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 DATASET_ROOT = BACKEND_ROOT / "data" / "voice_dataset"
 DEFAULT_SOURCE_DIR = DATASET_ROOT / "cleaned_voice_only"
 DEFAULT_EXPORT_ROOT = DATASET_ROOT / "exports" / "rvc_normal"
-DEFAULT_EXPORT_WAVS_DIR = DEFAULT_EXPORT_ROOT / "wavs"
 DEFAULT_REPORTS_DIR = DATASET_ROOT / "reports"
 
 # Audio extensions we accept as source files.
@@ -110,72 +118,153 @@ class ExportResult:
     warning: str
 
 
+def run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    """
+    Run a command and capture its output.
+
+    Beginner explanation:
+    Python is calling a terminal command for us.
+
+    Example command:
+        ffprobe -v error -show_entries format=duration ...
+
+    We capture:
+    - stdout: normal output
+    - stderr: error output
+    - returncode: 0 means success, non-zero means failure
+    """
+
+    return subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def read_ffprobe_value(command: list[str]) -> str | None:
+    """
+    Run an ffprobe command and return the first output line.
+
+    If ffprobe fails or returns nothing, return None.
+    """
+
+    result = run_command(command)
+
+    if result.returncode != 0:
+        return None
+
+    output = result.stdout.strip()
+
+    if not output:
+        return None
+
+    # ffprobe usually returns one line for these commands.
+    # If more than one line ever appears, use the first non-empty line.
+    for line in output.splitlines():
+        cleaned_line = line.strip()
+        if cleaned_line:
+            return cleaned_line
+
+    return None
+
+
 def get_audio_info(audio_path: Path) -> AudioInfo:
     """
-    Read audio duration and sample rate using PyAV.
+    Read audio duration and sample rate using ffprobe.
 
-    If PyAV cannot read the file, we do not crash immediately.
-    We return None values and report the warning later.
+    Why ffprobe:
+    The old PyAV duration calculation was producing huge incorrect values
+    like 6022494000000 seconds for clips that were really around 6 seconds.
+
+    Your manual command already proved ffprobe gives the correct value:
+        6.022494
+
+    So this function uses ffprobe for reporting, while the script still uses
+    ffmpeg for converting files to WAV.
     """
-    container = None
 
-    try:
-        container = av.open(str(audio_path))
+    duration_seconds: float | None = None
+    sample_rate: int | None = None
 
-        duration_seconds: float | None = None
-        sample_rate: int | None = None
+    # -------------------------
+    # Read duration in seconds
+    # -------------------------
+    duration_command = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=nw=1:nk=1",
+        str(audio_path),
+    ]
 
-        if container.duration is not None:
-            # PyAV stores container.duration in FFmpeg time units.
-            # Multiplying by av.time_base converts it into seconds.
-            duration_seconds = float(container.duration * av.time_base)
+    duration_text = read_ffprobe_value(duration_command)
 
-        audio_stream = next(
-            (stream for stream in container.streams if stream.type == "audio"),
-            None,
-        )
+    if duration_text:
+        try:
+            duration_seconds = float(duration_text)
+        except ValueError:
+            duration_seconds = None
 
-        if audio_stream is not None:
-            if duration_seconds is None:
-                if (
-                    audio_stream.duration is not None
-                    and audio_stream.time_base is not None
-                ):
-                    duration_seconds = float(
-                        audio_stream.duration * audio_stream.time_base
-                    )
+    # -------------------------
+    # Read sample rate
+    # -------------------------
+    sample_rate_command = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-select_streams",
+        "a:0",
+        "-show_entries",
+        "stream=sample_rate",
+        "-of",
+        "default=nw=1:nk=1",
+        str(audio_path),
+    ]
 
-            if audio_stream.rate is not None:
-                sample_rate = int(audio_stream.rate)
+    sample_rate_text = read_ffprobe_value(sample_rate_command)
 
-        return AudioInfo(
-            duration_seconds=duration_seconds,
-            sample_rate=sample_rate,
-        )
+    if sample_rate_text:
+        try:
+            sample_rate = int(sample_rate_text)
+        except ValueError:
+            sample_rate = None
 
-    except Exception:
-        return AudioInfo(duration_seconds=None, sample_rate=None)
-
-    finally:
-        if container is not None:
-            container.close()
+    return AudioInfo(
+        duration_seconds=duration_seconds,
+        sample_rate=sample_rate,
+    )
 
 
 def check_ffmpeg_available() -> None:
     """
-    Make sure ffmpeg is installed.
+    Make sure ffmpeg and ffprobe are installed.
 
-    On Mac, install with:
-        brew install ffmpeg
+    ffmpeg:
+        Used to convert mp3/m4a/etc. into WAV.
 
-    Why:
-    We use ffmpeg to convert mp3/m4a/etc. into consistent WAV files.
+    ffprobe:
+        Used to read accurate duration and sample rate.
+
+    On Windows:
+        ffprobe usually comes with ffmpeg.
     """
+
     ffmpeg_path = shutil.which("ffmpeg")
+    ffprobe_path = shutil.which("ffprobe")
 
     if ffmpeg_path is None:
         raise RuntimeError(
-            "ffmpeg was not found. Install it first with: brew install ffmpeg"
+            "ffmpeg was not found. Install ffmpeg, then reopen PowerShell."
+        )
+
+    if ffprobe_path is None:
+        raise RuntimeError(
+            "ffprobe was not found. It usually comes with ffmpeg. "
+            "Reinstall ffmpeg, then reopen PowerShell."
         )
 
 
@@ -183,6 +272,7 @@ def is_hidden_or_junk_file(path: Path) -> bool:
     """
     Skip files like .DS_Store and hidden macOS files.
     """
+
     return path.name.startswith(".")
 
 
@@ -190,6 +280,7 @@ def is_supported_audio_file(path: Path) -> bool:
     """
     Return True if this file extension is a supported audio type.
     """
+
     return (
         path.is_file()
         and not is_hidden_or_junk_file(path)
@@ -207,13 +298,21 @@ def find_source_audio_files(
     By default, we skip files directly inside cleaned_voice_only/.
 
     Why:
-    You have merged files like 16minsAudio.m4a at the root.
-    We do not want to accidentally export that long merged file.
+    You have merged files like:
+        16minsAudio.m4a
+        16minutesAudio.mp3
+
+    at the root of cleaned_voice_only.
+
+    We do not want to accidentally export those long merged files.
 
     We do want files inside subfolders:
         cleaned_voice_only/s1 e1/*.mp3
         cleaned_voice_only/s1 e2/*.mp3
+        cleaned_voice_only/s1 e5/*.mp3
+        cleaned_voice_only/s1 e6/*.mp3
     """
+
     if not source_dir.exists():
         raise FileNotFoundError(f"Source folder does not exist: {source_dir}")
 
@@ -231,13 +330,15 @@ def find_source_audio_files(
     return sorted(audio_files)
 
 
-def make_export_file_name(index: int, source_path: Path, prefix: str) -> str:
+def make_export_file_name(index: int, prefix: str) -> str:
     """
     Build a clean exported WAV filename.
 
     Example:
         uncle_normal_0001.wav
+        uncle_normal_0002.wav
     """
+
     return f"{prefix}_{index:04d}.wav"
 
 
@@ -258,6 +359,7 @@ def convert_to_wav(
         -ar 44100       44.1 kHz
         -sample_fmt s16 16-bit PCM
     """
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     command = [
@@ -274,12 +376,7 @@ def convert_to_wav(
         str(output_path),
     ]
 
-    completed = subprocess.run(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    completed = run_command(command)
 
     if completed.returncode != 0:
         raise RuntimeError(
@@ -300,6 +397,7 @@ def build_warning(
     Warnings do not stop export.
     They only help you review dataset quality.
     """
+
     warnings: list[str] = []
 
     if audio_info.duration_seconds is None:
@@ -327,6 +425,7 @@ def clean_export_folder(export_wavs_dir: Path) -> None:
 
     This prevents mixing old exports with new exports.
     """
+
     if not export_wavs_dir.exists():
         export_wavs_dir.mkdir(parents=True, exist_ok=True)
         return
@@ -334,6 +433,25 @@ def clean_export_folder(export_wavs_dir: Path) -> None:
     for child in export_wavs_dir.iterdir():
         if child.is_file():
             child.unlink()
+
+
+def safe_relative_path(path: Path, root: Path) -> str:
+    """
+    Convert a path into a cleaner display path.
+
+    Example:
+        C:/AI app/.../data/voice_dataset/cleaned_voice_only/s1 e1/a.mp3
+
+    becomes:
+        cleaned_voice_only/s1 e1/a.mp3
+
+    If the path is not under the root folder, return the full path.
+    """
+
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def write_manifest(
@@ -345,6 +463,7 @@ def write_manifest(
 
     This gives you a record of which source file became which exported WAV.
     """
+
     export_root.mkdir(parents=True, exist_ok=True)
     manifest_path = export_root / "manifest.csv"
 
@@ -378,9 +497,11 @@ def write_report(
     """
     Write a human-readable report.
     """
+
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     exported_count = sum(1 for result in results if result.status == "exported")
+    dry_run_count = sum(1 for result in results if result.status == "dry-run")
     warning_count = sum(1 for result in results if result.warning)
 
     total_seconds = 0.0
@@ -395,6 +516,7 @@ def write_report(
         f"Export root: {export_root}",
         f"Total source clips: {len(results)}",
         f"Exported clips: {exported_count}",
+        f"Dry-run clips: {dry_run_count}",
         f"Clips with warnings: {warning_count}",
         f"Total source duration seconds: {total_seconds:.2f}",
         f"Total source duration minutes: {total_seconds / 60.0:.2f}",
@@ -402,9 +524,12 @@ def write_report(
         "Warnings:",
     ]
 
-    for result in results:
-        if result.warning:
-            report_lines.append(f"- {result.source_file}: {result.warning}")
+    if warning_count == 0:
+        report_lines.append("- None")
+    else:
+        for result in results:
+            if result.warning:
+                report_lines.append(f"- {result.source_file}: {result.warning}")
 
     report_text = "\n".join(report_lines)
     report_path = reports_dir / "rvc_normal_export_report.txt"
@@ -430,16 +555,19 @@ def run_export(
 
     Steps:
     1. Find clips under cleaned_voice_only subfolders.
-    2. Read duration/sample rate.
-    3. Convert each clip to WAV.
+    2. Read duration/sample rate using ffprobe.
+    3. Convert each clip to WAV using ffmpeg.
     4. Write manifest.csv.
     5. Write report.
     """
+
     check_ffmpeg_available()
 
     source_dir = source_dir.resolve()
     export_root = export_root.resolve()
     export_wavs_dir = export_root / "wavs"
+
+    dataset_root = DATASET_ROOT.resolve()
 
     audio_files = find_source_audio_files(
         source_dir=source_dir,
@@ -464,7 +592,10 @@ def run_export(
     results: list[ExportResult] = []
 
     for index, source_path in enumerate(audio_files, start=1):
+        source_path = source_path.resolve()
+
         audio_info = get_audio_info(source_path)
+
         warning = build_warning(
             audio_info=audio_info,
             min_seconds=min_seconds,
@@ -473,14 +604,13 @@ def run_export(
 
         exported_name = make_export_file_name(
             index=index,
-            source_path=source_path,
             prefix=prefix,
         )
 
         exported_path = export_wavs_dir / exported_name
 
-        source_relative = source_path.relative_to(DATASET_ROOT).as_posix()
-        exported_relative = exported_path.relative_to(export_root).as_posix()
+        source_relative = safe_relative_path(source_path, dataset_root)
+        exported_relative = safe_relative_path(exported_path, export_root)
 
         if dry_run:
             status = "dry-run"
@@ -535,6 +665,7 @@ def build_parser() -> argparse.ArgumentParser:
         --clean
         --include-root-files
     """
+
     parser = argparse.ArgumentParser(
         description="Export normal-tone uncle voice clips for an RVC-style dataset."
     )
@@ -542,19 +673,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--source-dir",
         default=str(DEFAULT_SOURCE_DIR),
-        help="Folder containing clean source clips. Defaults to data/voice_dataset/cleaned_voice_only.",
+        help=(
+            "Folder containing clean source clips. "
+            "Defaults to data/voice_dataset/cleaned_voice_only."
+        ),
     )
 
     parser.add_argument(
         "--export-root",
         default=str(DEFAULT_EXPORT_ROOT),
-        help="Export folder. Defaults to data/voice_dataset/exports/rvc_normal.",
+        help=(
+            "Export folder. "
+            "Defaults to data/voice_dataset/exports/rvc_normal."
+        ),
     )
 
     parser.add_argument(
         "--include-root-files",
         action="store_true",
-        help="Also include files directly inside cleaned_voice_only. By default, root files are skipped.",
+        help=(
+            "Also include files directly inside cleaned_voice_only. "
+            "By default, root files are skipped."
+        ),
     )
 
     parser.add_argument(
@@ -596,6 +736,7 @@ def main() -> None:
     """
     Script entry point.
     """
+
     parser = build_parser()
     args = parser.parse_args()
 
@@ -609,7 +750,6 @@ def main() -> None:
             min_seconds=args.min_seconds,
             max_seconds=args.max_seconds,
             prefix=args.prefix,
-
         )
     except Exception as exc:
         print()
