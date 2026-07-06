@@ -608,8 +608,7 @@ def main() -> None:
             dry_run=args.dry_run,
             min_seconds=args.min_seconds,
             max_seconds=args.max_seconds,
-            prefix=args.prefix,.
-        0
+            prefix=args.prefix,
 
         )
     except Exception as exc:
