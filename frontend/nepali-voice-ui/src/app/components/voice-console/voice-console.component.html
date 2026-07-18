@@ -52,11 +52,6 @@
         <strong>Selected source:</strong>
         {{ selectedInputType }}
       </p>
-
-      <p>
-        <strong>Selected audio name:</strong>
-        {{ selectedAudioName }}
-      </p>
     </div>
 
     <div *ngIf="recordedAudioUrl" class="audio-preview">
@@ -64,48 +59,89 @@
         <strong>Audio preview:</strong>
       </p>
 
-      <div class="audio-inline-actions">
-        <audio
-          [src]="recordedAudioUrl"
-          controls
-        ></audio>
+      <audio
+        #previewAudioElement
+        [src]="recordedAudioUrl"
+        preload="metadata"
+        (loadedmetadata)="onPreviewLoaded()"
+        (timeupdate)="onPreviewTimeUpdate()"
+        (ended)="onPreviewEnded()"
+      ></audio>
+
+      <div class="custom-audio-player">
+        <button
+          type="button"
+          class="audio-icon-button"
+          title="Play or pause"
+          (click)="togglePreviewPlayback()"
+        >
+          {{ isPreviewPlaying ? '❚❚' : '▶' }}
+        </button>
+
+        <span class="audio-time">
+          {{ formatAudioTime(previewCurrentTime) }} / {{ formatAudioTime(previewDuration) }}
+        </span>
+
+        <input
+          class="audio-seek"
+          type="range"
+          min="0"
+          [max]="previewDuration || 0"
+          step="0.1"
+          [value]="previewCurrentTime"
+          (input)="seekPreviewAudio($event)"
+        />
+
+        <button
+          type="button"
+          class="audio-icon-button more-menu-button"
+          title="Audio actions"
+          (click)="togglePreviewMenu($event)"
+          [disabled]="isDownloadingAudio"
+        >
+          ⋮
+        </button>
 
         <div
-          class="preview-menu-wrapper"
+          class="preview-menu"
+          *ngIf="previewMenuOpen"
           (click)="$event.stopPropagation()"
         >
           <button
             type="button"
-            class="menu-button"
-            title="Audio actions"
-            (click)="togglePreviewMenu($event)"
-            [disabled]="isDownloadingAudio"
+            class="preview-menu-item"
+            (click)="downloadPreviewAudio()"
+            [disabled]="!lastAudioBlob || isDownloadingAudio"
           >
-            ⋮
+            Download Preview Audio
           </button>
 
-          <div
-            class="preview-menu"
-            *ngIf="previewMenuOpen"
-          >
-            <button
-              type="button"
-              class="preview-menu-item"
-              (click)="downloadPreviewAudio()"
-              [disabled]="!lastAudioBlob || isDownloadingAudio"
-            >
-              Download Preview Audio
-            </button>
+          <div class="preview-menu-speed">
+            <p class="preview-menu-label">
+              Playback speed
+            </p>
 
-            <button
-              type="button"
-              class="preview-menu-item danger-menu-item"
-              (click)="clearSelectedAudio()"
-              [disabled]="isProcessing || isDownloadingAudio"
-            >
-              Clear Selected Audio
-            </button>
+            <div class="speed-options">
+              <button
+                type="button"
+                class="speed-option"
+                *ngFor="let speed of playbackSpeedOptions"
+                (click)="setPreviewPlaybackSpeed(speed)"
+                [class.active]="previewPlaybackSpeed === speed"
+              >
+                {{ speed }}x
+              </button>
+            </div>
           </div>
+
+          <button
+            type="button"
+            class="preview-menu-item danger-menu-item"
+            (click)="clearSelectedAudio()"
+            [disabled]="isProcessing || isDownloadingAudio"
+          >
+            Clear Selected Audio
+          </button>
         </div>
       </div>
 
@@ -120,6 +156,7 @@
           [(ngModel)]="selectedDownloadFormat"
           [disabled]="isDownloadingAudio"
         >
+          <option value="weba">WEBA</option>
           <option value="wav">WAV</option>
           <option value="mp3">MP3</option>
           <option value="m4a">M4A</option>

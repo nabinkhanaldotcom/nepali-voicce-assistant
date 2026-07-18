@@ -4,9 +4,9 @@
  *
  * Goals:
  * 1. Restore the previous dark card layout.
- * 2. Keep sections clean and readable.
- * 3. Keep the three-dot menu near the audio preview.
- * 4. Style the new WAV / MP3 / M4A download selector.
+ * 2. Use one custom three-dot menu for preview audio actions.
+ * 3. Remove the duplicate native browser audio menu.
+ * 4. Style the WEBA / WAV / MP3 / M4A download selector.
  * 5. Avoid showing old debug/fallback UI.
  */
 
@@ -152,54 +152,72 @@ button:disabled {
   margin-top: 14px;
 }
 
-.audio-inline-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
+.audio-preview audio {
+  display: none;
 }
 
-.audio-inline-actions audio {
-  display: block;
-  max-width: 100%;
-  border-radius: 999px;
-  overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
-}
-
-/* Keep the menu button right beside the native player. */
-.preview-menu-wrapper {
+.custom-audio-player {
   position: relative;
   display: inline-flex;
   align-items: center;
-  flex: 0 0 auto;
+  gap: 10px;
+  max-width: 100%;
+  padding: 9px 10px;
+  border-radius: 999px;
+  background: #f4f7fb;
+  color: #11161d;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
-.menu-button {
+.audio-icon-button {
   width: 34px;
   height: 34px;
+  min-width: 34px;
   padding: 0;
-  border-radius: 10px;
-  background: rgba(39, 48, 60, 0.95);
-  color: #f5f8fc;
-  font-size: 18px;
-  line-height: 1;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: #11161d;
+  box-shadow: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  font-size: 16px;
+}
+
+.audio-icon-button:hover:not(:disabled) {
+  transform: none;
+  background: rgba(0, 0, 0, 0.08);
+  border-color: transparent;
+}
+
+.more-menu-button {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.audio-time {
+  min-width: 76px;
+  font-size: 14px;
+  color: #11161d;
+}
+
+.audio-seek {
+  width: 170px;
+  accent-color: #4b5563;
 }
 
 .preview-menu {
   position: absolute;
-  top: 42px;
+  top: 50px;
   right: 0;
-  min-width: 240px;
+  min-width: 260px;
   z-index: 20;
   overflow: hidden;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: #10161d;
+  color: #f4f7fb;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
 }
 
@@ -225,6 +243,42 @@ button:disabled {
 
 .danger-menu-item {
   color: #ffb6b6;
+}
+
+.preview-menu-speed {
+  padding: 11px 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.preview-menu-label {
+  margin: 0 0 8px;
+  color: #aeb9c5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.speed-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.speed-option {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #1b2430;
+  color: #f4f7fb;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.speed-option:hover:not(:disabled),
+.speed-option.active {
+  transform: none;
+  background: #2d74d8;
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .download-format-row {
@@ -373,13 +427,14 @@ textarea:focus {
     border-radius: 14px;
   }
 
-  .audio-inline-actions {
-    display: flex;
+  .custom-audio-player {
     width: 100%;
+    box-sizing: border-box;
   }
 
-  .audio-inline-actions audio {
-    max-width: calc(100% - 42px);
+  .audio-seek {
+    width: 100%;
+    min-width: 80px;
   }
 
   .download-format-row {

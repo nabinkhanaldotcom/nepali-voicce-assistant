@@ -22,6 +22,7 @@ export type TonePreset =
   | 'punchline';
 
 export type AudioDownloadFormat =
+  | 'weba'
   | 'wav'
   | 'mp3'
   | 'm4a';
@@ -183,11 +184,14 @@ export class VoiceService {
    * The browser may record audio as webm.
    * If the user wants mp3, wav, or m4a, the backend uses ffmpeg
    * to make a real converted file.
+   *
+   * WEBA is not sent here. WEBA is downloaded directly from Angular
+   * because it is the browser/default recording-style format.
    */
   convertAudioForDownload(
     audioFile: Blob,
     fileName: string,
-    outputFormat: AudioDownloadFormat
+    outputFormat: Exclude<AudioDownloadFormat, 'weba'>
   ): Observable<Blob> {
     const formData = new FormData();
 

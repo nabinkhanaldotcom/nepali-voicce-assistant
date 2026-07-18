@@ -3,6 +3,7 @@
 // This component controls the browser UI:
 // - record audio
 // - upload audio
+// - custom audio preview player
 // - select provider
 // - select OpenAI model if needed
 // - select tone preset
@@ -10,11 +11,18 @@
 // - send audio to FastAPI
 // - show transcript and matched clip
 // - play matched clip
-// - download preview/matched clip as wav/mp3/m4a
+// - download preview/matched clip as weba/wav/mp3/m4a
 
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, HostListener, NgZone, OnDestroy } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  NgZone,
+  OnDestroy,
+  ViewChild
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
@@ -36,6 +44,9 @@ import {
   styleUrl: './voice-console.component.scss'
 })
 export class VoiceConsoleComponent implements OnDestroy {
+  @ViewChild('previewAudioElement')
+  previewAudioElement?: ElementRef<HTMLAudioElement>;
+
   // -----------------------------
   // UI states
   // -----------------------------
@@ -60,7 +71,8 @@ export class VoiceConsoleComponent implements OnDestroy {
   // -----------------------------
   // Download format selection
   // -----------------------------
-  selectedDownloadFormat: AudioDownloadFormat = 'wav';
+  // WEBA is the default because browser recording is created as webm/web audio.
+  selectedDownloadFormat: AudioDownloadFormat = 'weba';
 
   // -----------------------------
   // Provider result info returned by backend
@@ -100,9 +112,15 @@ export class VoiceConsoleComponent implements OnDestroy {
   selectedAudioName = '';
 
   // -----------------------------
-  // Audio preview menu state
+  // Custom audio preview player state
   // -----------------------------
   previewMenuOpen = false;
+  isPreviewPlaying = false;
+  previewCurrentTime = 0;
+  previewDuration = 0;
+  previewPlaybackSpeed = 1;
+
+  readonly playbackSpeedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
   // -----------------------------
   // MediaRecorder-related state
@@ -131,7 +149,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   ) {}
 
   /**
-   * Close the preview menu when user clicks elsewhere.
+   * Close the custom preview menu when user clicks elsewhere.
    */
   @HostListener('document:click')
   onDocumentClick(): void {
@@ -154,6 +172,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
 
     this.stopCurrentAudioPlayback();
+    this.stopPreviewPlayback();
     this.clearResultsOnly();
 
     this.isPreparingRecording = true;
@@ -244,6 +263,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
 
     this.stopCurrentAudioPlayback();
+    this.stopPreviewPlayback();
     this.clearResultsOnly();
 
     const previewUrl = URL.createObjectURL(selectedFile);
@@ -314,10 +334,134 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Download the currently recorded/uploaded preview audio as wav/mp3/m4a.
+   * Custom preview audio loaded.
+   */
+  onPreviewLoaded(): void {
+    const audio = this.previewAudioElement?.nativeElement;
+
+    if (!audio) {
+      return;
+    }
+
+    this.previewDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
+    audio.playbackRate = this.previewPlaybackSpeed;
+  }
+
+  /**
+   * Custom preview audio time update.
+   */
+  onPreviewTimeUpdate(): void {
+    const audio = this.previewAudioElement?.nativeElement;
+
+    if (!audio) {
+      return;
+    }
+
+    this.previewCurrentTime = audio.currentTime || 0;
+    this.previewDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
+  }
+
+  /**
+   * Custom preview audio ended.
+   */
+  onPreviewEnded(): void {
+    this.isPreviewPlaying = false;
+
+    const audio = this.previewAudioElement?.nativeElement;
+
+    if (audio) {
+      audio.currentTime = 0;
+    }
+
+    this.previewCurrentTime = 0;
+  }
+
+  /**
+   * Toggle custom preview play/pause.
+   */
+  togglePreviewPlayback(): void {
+    const audio = this.previewAudioElement?.nativeElement;
+
+    if (!audio) {
+      return;
+    }
+
+    this.stopCurrentAudioPlayback();
+
+    if (this.isPreviewPlaying) {
+      audio.pause();
+      this.isPreviewPlaying = false;
+      return;
+    }
+
+    audio.playbackRate = this.previewPlaybackSpeed;
+
+    audio
+      .play()
+      .then(() => {
+        this.isPreviewPlaying = true;
+      })
+      .catch((err: unknown) => {
+        console.warn('Preview audio play error:', err);
+        this.errorMessage = 'Could not play the preview audio.';
+      });
+  }
+
+  /**
+   * Seek custom preview audio.
+   */
+  seekPreviewAudio(event: Event): void {
+    const audio = this.previewAudioElement?.nativeElement;
+    const input = event.target as HTMLInputElement;
+
+    if (!audio) {
+      return;
+    }
+
+    const nextTime = Number(input.value);
+
+    if (!Number.isFinite(nextTime)) {
+      return;
+    }
+
+    audio.currentTime = nextTime;
+    this.previewCurrentTime = nextTime;
+  }
+
+  /**
+   * Change playback speed for preview audio.
+   */
+  setPreviewPlaybackSpeed(speed: number): void {
+    this.previewPlaybackSpeed = speed;
+
+    const audio = this.previewAudioElement?.nativeElement;
+
+    if (audio) {
+      audio.playbackRate = speed;
+    }
+  }
+
+  /**
+   * Format seconds as m:ss.
+   */
+  formatAudioTime(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      return '0:00';
+    }
+
+    const totalSeconds = Math.floor(seconds);
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+
+  /**
+   * Download the currently recorded/uploaded preview audio as weba/wav/mp3/m4a.
    */
   downloadPreviewAudio(): void {
     this.errorMessage = '';
+    this.previewMenuOpen = false;
 
     if (!this.lastAudioBlob) {
       this.errorMessage = 'No audio is available to download.';
@@ -334,7 +478,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Download the matched phrase clip as wav/mp3/m4a.
+   * Download the matched phrase clip as weba/wav/mp3/m4a.
    */
   downloadMatchedClip(): void {
     this.errorMessage = '';
@@ -378,7 +522,13 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Send a blob to the backend conversion endpoint and download the result.
+   * Download a blob.
+   *
+   * If selectedDownloadFormat is "weba", we download directly in the browser
+   * as .weba. This keeps the default browser-style recording behavior.
+   *
+   * If selectedDownloadFormat is wav/mp3/m4a, we send it to FastAPI so
+   * ffmpeg can do a real audio conversion.
    */
   private convertAndDownloadAudioBlob(
     audioBlob: Blob,
@@ -388,6 +538,16 @@ export class VoiceConsoleComponent implements OnDestroy {
     if (this.currentDownloadSubscription) {
       this.currentDownloadSubscription.unsubscribe();
       this.currentDownloadSubscription = null;
+    }
+
+    if (this.selectedDownloadFormat === 'weba') {
+      this.downloadBlobDirectly(
+        audioBlob,
+        `${this.getBaseFileName(sourceFileName, fallbackBaseName)}.weba`
+      );
+
+      this.isDownloadingAudio = false;
+      return;
     }
 
     this.isDownloadingAudio = true;
@@ -400,17 +560,10 @@ export class VoiceConsoleComponent implements OnDestroy {
       )
       .subscribe({
         next: (convertedBlob: Blob) => {
-          const downloadUrl = URL.createObjectURL(convertedBlob);
-          const link = document.createElement('a');
+          const downloadFileName =
+            `${this.getBaseFileName(sourceFileName, fallbackBaseName)}.${this.selectedDownloadFormat}`;
 
-          link.href = downloadUrl;
-          link.download = `${this.getBaseFileName(sourceFileName, fallbackBaseName)}.${this.selectedDownloadFormat}`;
-
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-
-          URL.revokeObjectURL(downloadUrl);
+          this.downloadBlobDirectly(convertedBlob, downloadFileName);
 
           this.isDownloadingAudio = false;
           this.currentDownloadSubscription = null;
@@ -424,6 +577,26 @@ export class VoiceConsoleComponent implements OnDestroy {
           this.currentDownloadSubscription = null;
         }
       });
+  }
+
+  /**
+   * Download a Blob directly in the browser.
+   */
+  private downloadBlobDirectly(
+    audioBlob: Blob,
+    downloadFileName: string
+  ): void {
+    const downloadUrl = URL.createObjectURL(audioBlob);
+    const link = document.createElement('a');
+
+    link.href = downloadUrl;
+    link.download = downloadFileName;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(downloadUrl);
   }
 
   /**
@@ -532,6 +705,7 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
+    this.stopPreviewPlayback();
     this.stopCurrentAudioPlayback();
 
     const audio = new Audio(this.matchedClipUrl);
@@ -550,7 +724,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Stop any currently playing audio clip.
+   * Stop any currently playing matched clip.
    */
   private stopCurrentAudioPlayback(): void {
     if (this.currentPlaybackAudio) {
@@ -561,7 +735,20 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Toggle the preview menu near the native audio player.
+   * Stop preview audio if it is playing.
+   */
+  private stopPreviewPlayback(): void {
+    const audio = this.previewAudioElement?.nativeElement;
+
+    if (audio) {
+      audio.pause();
+    }
+
+    this.isPreviewPlaying = false;
+  }
+
+  /**
+   * Toggle the custom preview menu.
    */
   togglePreviewMenu(event: MouseEvent): void {
     event.stopPropagation();
@@ -573,11 +760,16 @@ export class VoiceConsoleComponent implements OnDestroy {
    */
   clearSelectedAudio(): void {
     this.stopCurrentAudioPlayback();
+    this.stopPreviewPlayback();
 
     this.lastAudioBlob = null;
     this.selectedInputType = null;
     this.selectedAudioName = '';
     this.previewMenuOpen = false;
+
+    this.previewCurrentTime = 0;
+    this.previewDuration = 0;
+    this.isPreviewPlaying = false;
 
     if (this.recordedAudioUrl) {
       URL.revokeObjectURL(this.recordedAudioUrl);
@@ -605,6 +797,10 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.selectedInputType = inputType;
     this.selectedAudioName = fileName;
     this.previewMenuOpen = false;
+
+    this.previewCurrentTime = 0;
+    this.previewDuration = 0;
+    this.isPreviewPlaying = false;
   }
 
   /**
@@ -649,6 +845,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
 
     this.stopCurrentAudioPlayback();
+    this.stopPreviewPlayback();
 
     if (this.currentRecordingStream) {
       this.currentRecordingStream
