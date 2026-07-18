@@ -6,9 +6,11 @@
 // - select provider
 // - select OpenAI model if needed
 // - select tone preset
+// - select download format
 // - send audio to FastAPI
 // - show transcript and matched clip
 // - play matched clip
+// - download preview/matched clip as wav/mp3/m4a
 
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -17,6 +19,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
 import {
+  AudioDownloadFormat,
   MatchedClip,
   OpenAiTranscriptionModel,
   TonePreset,
@@ -39,6 +42,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   isRecording = false;
   isPreparingRecording = false;
   isProcessing = false;
+  isDownloadingAudio = false;
 
   // -----------------------------
   // Text / error output
@@ -50,10 +54,13 @@ export class VoiceConsoleComponent implements OnDestroy {
   // Manual transcription provider selection
   // -----------------------------
   selectedProvider: TranscriptionProvider = 'local_whisper';
-
   selectedOpenAiModel: OpenAiTranscriptionModel = 'gpt-4o-mini-transcribe';
-
   selectedTonePreset: TonePreset = 'original';
+
+  // -----------------------------
+  // Download format selection
+  // -----------------------------
+  selectedDownloadFormat: AudioDownloadFormat = 'wav';
 
   // -----------------------------
   // Provider result info returned by backend
@@ -61,10 +68,8 @@ export class VoiceConsoleComponent implements OnDestroy {
   providerRequested = '';
   providerUsed = '';
   modelUsed = '';
-
   durationSeconds: number | null = null;
   estimatedCostUsd = 0;
-
   tonePresetReturned = '';
 
   // -----------------------------
@@ -111,6 +116,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   // Request / playback management
   // -----------------------------
   private currentRequestSubscription: Subscription | null = null;
+  private currentDownloadSubscription: Subscription | null = null;
   private currentPlaybackAudio: HTMLAudioElement | null = null;
 
   // -----------------------------
@@ -151,6 +157,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.clearResultsOnly();
 
     this.isPreparingRecording = true;
+
     const requestId = ++this.latestRecordingRequestId;
 
     navigator.mediaDevices
@@ -192,9 +199,7 @@ export class VoiceConsoleComponent implements OnDestroy {
       .catch((err: unknown) => {
         console.error('Microphone access error:', err);
 
-        this.errorMessage =
-          'Could not access microphone. Please allow microphone permission.';
-
+        this.errorMessage = 'Could not access microphone. Please allow microphone permission.';
         this.isPreparingRecording = false;
       });
   }
@@ -309,6 +314,141 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
+   * Download the currently recorded/uploaded preview audio as wav/mp3/m4a.
+   */
+  downloadPreviewAudio(): void {
+    this.errorMessage = '';
+
+    if (!this.lastAudioBlob) {
+      this.errorMessage = 'No audio is available to download.';
+      return;
+    }
+
+    const fileName = this.selectedAudioName || 'preview-audio.webm';
+
+    this.convertAndDownloadAudioBlob(
+      this.lastAudioBlob,
+      fileName,
+      'preview-audio'
+    );
+  }
+
+  /**
+   * Download the matched phrase clip as wav/mp3/m4a.
+   */
+  downloadMatchedClip(): void {
+    this.errorMessage = '';
+
+    if (!this.matchedClipUrl || !this.matchedClip) {
+      this.errorMessage = 'No matched clip is available to download.';
+      return;
+    }
+
+    this.isDownloadingAudio = true;
+
+    fetch(this.matchedClipUrl)
+      .then((response: Response) => {
+        if (!response.ok) {
+          throw new Error(`Could not download matched clip. HTTP status: ${response.status}`);
+        }
+
+        return response.blob();
+      })
+      .then((clipBlob: Blob) => {
+        this.ngZone.run(() => {
+          this.convertAndDownloadAudioBlob(
+            clipBlob,
+            this.matchedClip?.clipFileName || 'matched-clip.m4a',
+            'matched-clip'
+          );
+        });
+      })
+      .catch((err: unknown) => {
+        console.error('Matched clip download error:', err);
+
+        this.ngZone.run(() => {
+          this.errorMessage =
+            err instanceof Error
+              ? err.message
+              : 'Could not download matched clip.';
+
+          this.isDownloadingAudio = false;
+        });
+      });
+  }
+
+  /**
+   * Send a blob to the backend conversion endpoint and download the result.
+   */
+  private convertAndDownloadAudioBlob(
+    audioBlob: Blob,
+    sourceFileName: string,
+    fallbackBaseName: string
+  ): void {
+    if (this.currentDownloadSubscription) {
+      this.currentDownloadSubscription.unsubscribe();
+      this.currentDownloadSubscription = null;
+    }
+
+    this.isDownloadingAudio = true;
+
+    this.currentDownloadSubscription = this.voiceService
+      .convertAudioForDownload(
+        audioBlob,
+        sourceFileName,
+        this.selectedDownloadFormat
+      )
+      .subscribe({
+        next: (convertedBlob: Blob) => {
+          const downloadUrl = URL.createObjectURL(convertedBlob);
+          const link = document.createElement('a');
+
+          link.href = downloadUrl;
+          link.download = `${this.getBaseFileName(sourceFileName, fallbackBaseName)}.${this.selectedDownloadFormat}`;
+
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+
+          URL.revokeObjectURL(downloadUrl);
+
+          this.isDownloadingAudio = false;
+          this.currentDownloadSubscription = null;
+        },
+        error: (err: unknown) => {
+          console.error('Audio conversion/download error:', err);
+
+          this.errorMessage = this.buildBackendErrorMessage(err);
+
+          this.isDownloadingAudio = false;
+          this.currentDownloadSubscription = null;
+        }
+      });
+  }
+
+  /**
+   * Get the file name without extension.
+   *
+   * Example:
+   * recording.webm -> recording
+   */
+  private getBaseFileName(fileName: string, fallbackBaseName: string): string {
+    const cleanedFileName = (fileName || '').trim();
+
+    if (!cleanedFileName) {
+      return fallbackBaseName;
+    }
+
+    const lastDotIndex = cleanedFileName.lastIndexOf('.');
+
+    if (lastDotIndex <= 0) {
+      return cleanedFileName || fallbackBaseName;
+    }
+
+    return cleanedFileName.substring(0, lastDotIndex) || fallbackBaseName;
+  }
+
+  /**
    * Build a useful error message from Angular/HTTP/backend errors.
    *
    * Beginner explanation:
@@ -364,14 +504,12 @@ export class VoiceConsoleComponent implements OnDestroy {
 
     this.durationSeconds = res.durationSeconds ?? null;
     this.estimatedCostUsd = res.estimatedCostUsd ?? 0;
-
     this.tonePresetReturned = res.tonePreset || '';
 
     this.detectedLanguage = res.detectedLanguage || '';
     this.languageProbability = res.languageProbability ?? null;
 
     this.matchScore = res.score ?? null;
-
     this.matchedClip = res.matchedClip ?? null;
 
     this.matchedClipUrl = this.voiceService.getFullClipUrl(
@@ -503,6 +641,11 @@ export class VoiceConsoleComponent implements OnDestroy {
     if (this.currentRequestSubscription) {
       this.currentRequestSubscription.unsubscribe();
       this.currentRequestSubscription = null;
+    }
+
+    if (this.currentDownloadSubscription) {
+      this.currentDownloadSubscription.unsubscribe();
+      this.currentDownloadSubscription = null;
     }
 
     this.stopCurrentAudioPlayback();

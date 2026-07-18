@@ -47,3 +47,9 @@ backend_api/.env
 
 backend_api/package-lock.json
 frontend/package-lock.json
+
+# Local trained voice models
+backend_api/models/
+*.pth
+*.index
+*.zip

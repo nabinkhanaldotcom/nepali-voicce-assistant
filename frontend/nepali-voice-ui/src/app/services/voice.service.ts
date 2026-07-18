@@ -15,7 +15,16 @@ export type OpenAiTranscriptionModel =
   | 'gpt-4o-mini-transcribe'
   | 'gpt-4o-transcribe';
 
-export type TonePreset = 'original' | 'happy' | 'sad' | 'punchline';
+export type TonePreset =
+  | 'original'
+  | 'happy'
+  | 'sad'
+  | 'punchline';
+
+export type AudioDownloadFormat =
+  | 'wav'
+  | 'mp3'
+  | 'm4a';
 
 export interface UploadAudioResponse {
   message: string;
@@ -52,18 +61,14 @@ export interface OutputDecision {
 
 export interface TranscribeAndMatchResponse {
   message: string;
-
   providerRequested: TranscriptionProvider | string;
   providerUsed: TranscriptionProvider | string;
   modelUsed: string;
-
   transcript: string;
   detectedLanguage: string | null;
   languageProbability: number | null;
-
   durationSeconds: number | null;
   estimatedCostUsd: number;
-
   tonePreset: TonePreset | string;
 
   // Simple score only.
@@ -74,7 +79,6 @@ export interface TranscribeAndMatchResponse {
 
   matchedClip: MatchedClip | null;
   outputDecision: OutputDecision;
-
   fileInfo: FileInfo;
 }
 
@@ -99,6 +103,7 @@ export class VoiceService {
     fileName: string
   ): Observable<UploadAudioResponse> {
     const formData = new FormData();
+
     formData.append('file', audioFile, fileName);
 
     return this.http.post<UploadAudioResponse>(
@@ -165,6 +170,36 @@ export class VoiceService {
     return this.http.post<TranscribeAndMatchResponse>(
       `${this.baseUrl}/transcribe-and-match`,
       formData
+    );
+  }
+
+  /**
+   * Convert audio into a selected download format.
+   *
+   * Backend endpoint:
+   * POST http://localhost:8000/convert-audio-download
+   *
+   * Beginner explanation:
+   * The browser may record audio as webm.
+   * If the user wants mp3, wav, or m4a, the backend uses ffmpeg
+   * to make a real converted file.
+   */
+  convertAudioForDownload(
+    audioFile: Blob,
+    fileName: string,
+    outputFormat: AudioDownloadFormat
+  ): Observable<Blob> {
+    const formData = new FormData();
+
+    formData.append('file', audioFile, fileName);
+    formData.append('outputFormat', outputFormat);
+
+    return this.http.post(
+      `${this.baseUrl}/convert-audio-download`,
+      formData,
+      {
+        responseType: 'blob'
+      }
     );
   }
 

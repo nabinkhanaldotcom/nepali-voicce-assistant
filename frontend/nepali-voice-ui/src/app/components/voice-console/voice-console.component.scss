@@ -1,24 +1,24 @@
-/* frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.scss */
-
-/*
-  This file controls the visual styling of the voice console UI.
-
-  Goals:
-  1. Keep the page readable
-  2. Make provider/model/tone selections clear
-  3. Keep the three-dot menu near the audio preview
-  4. Avoid showing old debug/fallback UI
-*/
+/* frontend/nepali-voice-ui/src/app/components/voice-console/voice-console.component.scss
+ *
+ * This file controls the visual styling of the voice console UI.
+ *
+ * Goals:
+ * 1. Restore the previous dark card layout.
+ * 2. Keep sections clean and readable.
+ * 3. Keep the three-dot menu near the audio preview.
+ * 4. Style the new WAV / MP3 / M4A download selector.
+ * 5. Avoid showing old debug/fallback UI.
+ */
 
 :host {
   display: block;
   min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
   background:
     radial-gradient(circle at top left, rgba(73, 144, 226, 0.18), transparent 28%),
     radial-gradient(circle at top right, rgba(88, 214, 141, 0.12), transparent 24%),
     linear-gradient(180deg, #11161d 0%, #0d1218 100%);
-  padding: 24px;
-  box-sizing: border-box;
 }
 
 .voice-console {
@@ -28,11 +28,11 @@
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(23, 30, 39, 0.94);
+  color: #f4f7fb;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  color: #f4f7fb;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   backdrop-filter: blur(8px);
 }
 
@@ -137,11 +137,15 @@ button:disabled {
   display: block;
   width: 100%;
   padding: 10px;
+  box-sizing: border-box;
   border-radius: 12px;
   border: 1px dashed rgba(255, 255, 255, 0.18);
   background: rgba(15, 20, 27, 0.65);
   color: #dfe8f2;
-  box-sizing: border-box;
+}
+
+.selected-audio-info {
+  margin-top: 12px;
 }
 
 .audio-preview {
@@ -157,6 +161,7 @@ button:disabled {
 
 .audio-inline-actions audio {
   display: block;
+  max-width: 100%;
   border-radius: 999px;
   overflow: hidden;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
@@ -189,25 +194,70 @@ button:disabled {
   position: absolute;
   top: 42px;
   right: 0;
-  min-width: 220px;
-  background: #10161d;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  min-width: 240px;
   z-index: 20;
   overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #10161d;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
 }
 
-.preview-menu a {
+.preview-menu-item {
   display: block;
+  width: 100%;
   padding: 11px 13px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #f4f7fb;
-  text-decoration: none;
+  text-align: left;
   font-size: 14px;
+  font-weight: 500;
+  box-shadow: none;
 }
 
-.preview-menu a:hover {
+.preview-menu-item:hover:not(:disabled) {
+  transform: none;
   background: #1d2530;
+  border-color: transparent;
+}
+
+.danger-menu-item {
+  color: #ffb6b6;
+}
+
+.download-format-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(15, 20, 27, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.download-format-row label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.download-format-select {
+  min-width: 110px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #141b23;
+  color: #f5f8fc;
+  font-size: 14px;
+  outline: none;
+}
+
+.download-format-select:focus {
+  border-color: rgba(110, 170, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(110, 170, 255, 0.12);
 }
 
 .form-grid {
@@ -251,11 +301,11 @@ textarea {
   min-height: 120px;
   margin-top: 8px;
   padding: 12px 14px;
+  box-sizing: border-box;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: #121920;
   color: #f2f7fb;
-  box-sizing: border-box;
   resize: vertical;
   line-height: 1.6;
   font-size: 14px;
@@ -303,6 +353,10 @@ textarea:focus {
   line-height: 1.5;
 }
 
+.match-actions {
+  margin-top: 14px;
+}
+
 /* Make layout work on smaller screens. */
 @media (max-width: 640px) {
   :host {
@@ -326,5 +380,15 @@ textarea:focus {
 
   .audio-inline-actions audio {
     max-width: calc(100% - 42px);
+  }
+
+  .download-format-row {
+    align-items: stretch;
+  }
+
+  .download-format-row label,
+  .download-format-select,
+  .download-format-row .hint {
+    width: 100%;
   }
 }

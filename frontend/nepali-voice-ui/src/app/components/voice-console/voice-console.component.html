@@ -6,7 +6,7 @@
     then send it to the Python FastAPI backend for transcription and phrase matching.
   </p>
 
-  <div class="section">
+  <section class="section">
     <h3>1. Choose Audio Source</h3>
 
     <div class="button-row">
@@ -27,13 +27,19 @@
       </button>
     </div>
 
-    <p *ngIf="isPreparingRecording" class="status">Preparing microphone...</p>
-    <p *ngIf="isRecording" class="status">Recording...</p>
+    <p *ngIf="isPreparingRecording" class="status">
+      Preparing microphone...
+    </p>
+
+    <p *ngIf="isRecording" class="status">
+      Recording...
+    </p>
 
     <div class="file-picker">
-      <label for="audioFile">Or choose an audio file:</label>
+      <label for="audioFileInput">Or choose an audio file:</label>
+
       <input
-        id="audioFile"
+        id="audioFileInput"
         type="file"
         accept="audio/*"
         (change)="onFileSelected($event)"
@@ -41,74 +47,138 @@
       />
     </div>
 
-    <div *ngIf="selectedInputType">
-      <p><strong>Selected source:</strong> {{ selectedInputType }}</p>
-      <p><strong>Selected audio name:</strong> {{ selectedAudioName }}</p>
+    <div *ngIf="selectedInputType" class="info-grid selected-audio-info">
+      <p>
+        <strong>Selected source:</strong>
+        {{ selectedInputType }}
+      </p>
+
+      <p>
+        <strong>Selected audio name:</strong>
+        {{ selectedAudioName }}
+      </p>
     </div>
 
     <div *ngIf="recordedAudioUrl" class="audio-preview">
-      <p><strong>Audio preview:</strong></p>
+      <p>
+        <strong>Audio preview:</strong>
+      </p>
 
       <div class="audio-inline-actions">
-        <audio [src]="recordedAudioUrl" controls></audio>
+        <audio
+          [src]="recordedAudioUrl"
+          controls
+        ></audio>
 
-        <div class="preview-menu-wrapper">
+        <div
+          class="preview-menu-wrapper"
+          (click)="$event.stopPropagation()"
+        >
           <button
             type="button"
             class="menu-button"
-            title="Audio options"
+            title="Audio actions"
             (click)="togglePreviewMenu($event)"
+            [disabled]="isDownloadingAudio"
           >
             ⋮
           </button>
 
-          <div *ngIf="previewMenuOpen" class="preview-menu" (click)="$event.stopPropagation()">
-            <a
-              [href]="recordedAudioUrl"
-              [download]="selectedAudioName || 'audio.webm'"
+          <div
+            class="preview-menu"
+            *ngIf="previewMenuOpen"
+          >
+            <button
+              type="button"
+              class="preview-menu-item"
+              (click)="downloadPreviewAudio()"
+              [disabled]="!lastAudioBlob || isDownloadingAudio"
             >
               Download Preview Audio
-            </a>
+            </button>
 
-            <a
-              href="#"
-              (click)="clearSelectedAudio(); $event.preventDefault()"
+            <button
+              type="button"
+              class="preview-menu-item danger-menu-item"
+              (click)="clearSelectedAudio()"
+              [disabled]="isProcessing || isDownloadingAudio"
             >
               Clear Selected Audio
-            </a>
+            </button>
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <div class="section">
+      <div class="download-format-row">
+        <label for="downloadFormat">
+          Download format:
+        </label>
+
+        <select
+          id="downloadFormat"
+          class="download-format-select"
+          [(ngModel)]="selectedDownloadFormat"
+          [disabled]="isDownloadingAudio"
+        >
+          <option value="wav">WAV</option>
+          <option value="mp3">MP3</option>
+          <option value="m4a">M4A</option>
+        </select>
+
+        <span class="hint">
+          Preview and matched clips will download as this format.
+        </span>
+      </div>
+
+      <p *ngIf="isDownloadingAudio" class="status">
+        Preparing download...
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
     <h3>2. Transcription Options</h3>
 
     <div class="form-grid">
-      <label>
-        Provider:
-        <select [(ngModel)]="selectedProvider" [disabled]="isProcessing">
+      <label for="provider">
+        Provider
+
+        <select
+          id="provider"
+          [(ngModel)]="selectedProvider"
+          [disabled]="isProcessing"
+        >
           <option value="local_whisper">Local Whisper</option>
           <option value="openai_whisper">OpenAI Whisper</option>
         </select>
       </label>
 
-      <label *ngIf="selectedProvider === 'openai_whisper'">
-        OpenAI model:
-        <select [(ngModel)]="selectedOpenAiModel" [disabled]="isProcessing">
+      <label for="openAiModel">
+        OpenAI model
+
+        <select
+          id="openAiModel"
+          [(ngModel)]="selectedOpenAiModel"
+          [disabled]="isProcessing || selectedProvider !== 'openai_whisper'"
+        >
           <option value="gpt-4o-mini-transcribe">
             gpt-4o-mini-transcribe
           </option>
+
           <option value="gpt-4o-transcribe">
             gpt-4o-transcribe
           </option>
         </select>
       </label>
 
-      <label>
-        Tone preset:
-        <select [(ngModel)]="selectedTonePreset" [disabled]="isProcessing">
+      <label for="tonePreset">
+        Tone preset
+
+        <select
+          id="tonePreset"
+          [(ngModel)]="selectedTonePreset"
+          [disabled]="isProcessing"
+        >
           <option value="original">original</option>
           <option value="happy">happy</option>
           <option value="sad">sad</option>
@@ -118,99 +188,188 @@
     </div>
 
     <p class="hint">
-      Provider selection is manual only. The backend will not automatically send
-      local Whisper results to OpenAI.
+      Provider selection is manual only. The backend will not automatically
+      send local Whisper results to OpenAI.
     </p>
-  </div>
+  </section>
 
-  <div class="section">
+  <section class="section">
     <h3>3. Send to Backend</h3>
 
-    <button
-      type="button"
-      (click)="sendToBackend()"
-      [disabled]="!lastAudioBlob || isRecording || isPreparingRecording || isProcessing"
-    >
-      Send Audio to Backend
-    </button>
+    <div class="button-row">
+      <button
+        type="button"
+        (click)="sendToBackend()"
+        [disabled]="!lastAudioBlob || isProcessing"
+      >
+        Send Audio to Backend
+      </button>
+    </div>
 
-    <p *ngIf="isProcessing" class="status">Processing...</p>
-  </div>
+    <p *ngIf="isProcessing" class="status">
+      Processing...
+    </p>
+  </section>
 
-  <div class="section" *ngIf="providerUsed || recognizedText || matchedClip || matchScore !== null">
+  <section class="section">
     <h3>4. Provider Result</h3>
 
     <div class="info-grid">
-      <p><strong>Requested provider:</strong> {{ providerRequested || 'N/A' }}</p>
-      <p><strong>Used provider:</strong> {{ providerUsed || 'N/A' }}</p>
-      <p><strong>Model used:</strong> {{ modelUsed || 'N/A' }}</p>
-      <p><strong>Audio duration:</strong> {{ durationSeconds ?? 'N/A' }} seconds</p>
-      <!-- <p><strong>Estimated cost:</strong> ${{ estimatedCostUsd ?? 0 }}</p> -->
-       <p><strong>Estimated cost:</strong> ${{ estimatedCostUsd }}</p>
-      <p><strong>Tone preset:</strong> {{ tonePresetReturned || 'N/A' }}</p>
-    </div>
-  </div>
+      <p>
+        <strong>Requested provider:</strong>
+        {{ providerRequested || 'N/A' }}
+      </p>
 
-  <div class="section" *ngIf="recognizedText">
+      <p>
+        <strong>Used provider:</strong>
+        {{ providerUsed || 'N/A' }}
+      </p>
+
+      <p>
+        <strong>Model used:</strong>
+        {{ modelUsed || 'N/A' }}
+      </p>
+
+      <p>
+        <strong>Audio duration:</strong>
+        {{ durationSeconds ?? 'N/A' }} seconds
+      </p>
+
+      <p>
+        <strong>Estimated cost:</strong>
+        ${{ estimatedCostUsd }}
+      </p>
+
+      <p>
+        <strong>Tone preset:</strong>
+        {{ tonePresetReturned || 'N/A' }}
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
     <h3>5. Transcript Result</h3>
 
-    <p><strong>Recognized Text:</strong></p>
+    <p>
+      <strong>Recognized Text:</strong>
+    </p>
 
-    <textarea readonly [value]="recognizedText"></textarea>
+    <textarea
+      readonly
+      [value]="recognizedText || 'N/A'"
+    ></textarea>
 
     <div class="info-grid">
-      <p><strong>Detected language:</strong> {{ detectedLanguage || 'N/A' }}</p>
-      <p><strong>Language probability:</strong> {{ languageProbability ?? 'N/A' }}</p>
-    </div>
-  </div>
+      <p>
+        <strong>Detected language:</strong>
+        {{ detectedLanguage || 'N/A' }}
+      </p>
 
-  <div class="section" *ngIf="matchScore !== null || matchedClip">
+      <p>
+        <strong>Language probability:</strong>
+        {{ languageProbability ?? 'N/A' }}
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
     <h3>6. Phrase Match Result</h3>
 
     <div class="info-grid">
-      <p><strong>Matched:</strong> {{ matchedClip ? 'Yes' : 'No' }}</p>
-      <p><strong>Best alias score:</strong> {{ matchScore ?? 'N/A' }}</p>
-      <p><strong>Matched phrase:</strong> {{ matchedClip?.displayName || 'None' }}</p>
-      <p><strong>Matched alias:</strong> {{ matchedClip?.matchedAlias || 'None' }}</p>
-      <p><strong>Clip file:</strong> {{ matchedClip?.clipFileName || 'None' }}</p>
-      <p><strong>Clip exists:</strong> {{ matchedClip?.clipExists ? 'Yes' : 'No' }}</p>
+      <p>
+        <strong>Matched:</strong>
+        {{ matchedClip ? 'Yes' : 'No' }}
+      </p>
+
+      <p>
+        <strong>Best alias score:</strong>
+        {{ matchScore ?? 'N/A' }}
+      </p>
+
+      <p>
+        <strong>Matched phrase:</strong>
+        {{ matchedClip?.displayName || 'None' }}
+      </p>
+
+      <p>
+        <strong>Matched alias:</strong>
+        {{ matchedClip?.matchedAlias || 'None' }}
+      </p>
+
+      <p>
+        <strong>Clip file:</strong>
+        {{ matchedClip?.clipFileName || 'None' }}
+      </p>
+
+      <p>
+        <strong>Clip exists:</strong>
+        {{ matchedClip?.clipExists ? 'Yes' : 'No' }}
+      </p>
     </div>
 
-    <div class="button-row" *ngIf="matchedClip?.clipExists && matchedClipUrl">
-      <button type="button" (click)="playMatchedClip()">
+    <div
+      *ngIf="matchedClipUrl"
+      class="button-row match-actions"
+    >
+      <button
+        type="button"
+        (click)="playMatchedClip()"
+      >
         Play Match Clip
       </button>
 
-      <a class="download-button" [href]="matchedClipUrl" [download]="matchedClip?.clipFileName">
-        Download Match Clip
-      </a>
+      <button
+        type="button"
+        (click)="downloadMatchedClip()"
+        [disabled]="isDownloadingAudio"
+      >
+        Download Match Clip as {{ selectedDownloadFormat | uppercase }}
+      </button>
     </div>
 
-    <p *ngIf="matchedClip && !matchedClip.clipExists" class="warning">
+    <p
+      *ngIf="matchedClip && !matchedClipUrl"
+      class="warning"
+    >
       A phrase alias matched, but the clip file was not found in backend_api/phrase_clips.
     </p>
-  </div>
+  </section>
 
-  <div class="section" *ngIf="outputDecisionStatus">
+  <section class="section">
     <h3>7. Output Generation Placeholder</h3>
 
     <div class="info-grid">
-      <p><strong>Status:</strong> {{ outputDecisionStatus || 'N/A' }}</p>
-      <p><strong>Message:</strong> {{ outputDecisionMessage || 'N/A' }}</p>
-      <p><strong>Tone preset:</strong> {{ outputDecisionTonePreset || 'N/A' }}</p>
+      <p>
+        <strong>Status:</strong>
+        {{ outputDecisionStatus || 'N/A' }}
+      </p>
+
+      <p>
+        <strong>Tone preset:</strong>
+        {{ outputDecisionTonePreset || 'N/A' }}
+      </p>
+
       <p>
         <strong>Should generate voice now:</strong>
         {{ outputDecisionShouldGenerateVoice ? 'Yes' : 'No' }}
       </p>
     </div>
 
+    <p>
+      <strong>Message:</strong>
+      {{ outputDecisionMessage || 'N/A' }}
+    </p>
+
     <p class="hint">
       Full generated uncle-style voice output is not implemented yet.
       For now, the app only replays saved matched phrase clips.
     </p>
-  </div>
+  </section>
 
-  <div *ngIf="errorMessage" class="error">
+  <p
+    *ngIf="errorMessage"
+    class="error"
+  >
     ⚠️ {{ errorMessage }}
-  </div>
+  </p>
 </div>
