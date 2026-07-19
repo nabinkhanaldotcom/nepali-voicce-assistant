@@ -391,6 +391,58 @@ def run_ffprobe(audio_path: Path) -> dict[str, Any]:
         ) from exc
 
 
+
+def validate_uploaded_audio_file_before_conversion(audio_path: Path) -> None:
+    """
+    Validate uploaded browser audio before conversion.
+
+    Some mobile browser recordings, especially WebKit/Safari WebM, can be valid
+    audio but have no readable container duration before conversion.
+
+    For this first validation step:
+    - require at least one stream
+    - require audio-only streams
+    - require a supported container format
+    - do NOT require duration yet
+
+    Duration is checked after ffmpeg converts the upload to a clean WAV.
+    """
+    probe_result = run_ffprobe(audio_path)
+
+    streams = probe_result.get("streams", [])
+
+    if not streams:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file does not contain an audio stream.",
+        )
+
+    stream_types = {
+        str(stream.get("codec_type", "")).lower()
+        for stream in streams
+    }
+
+    if stream_types != {"audio"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file must be audio-only. Video/data/subtitle streams are not allowed.",
+        )
+
+    format_info = probe_result.get("format", {})
+    format_name = str(format_info.get("format_name", "")).lower()
+    format_parts = {
+        part.strip()
+        for part in format_name.split(",")
+        if part.strip()
+    }
+
+    if format_parts and not format_parts.intersection(SUPPORTED_FFPROBE_FORMATS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported audio container format: {format_name}",
+        )
+
+
 def validate_audio_file_with_ffprobe(audio_path: Path) -> float:
     """
     Validate that the uploaded file is really an audio-only media file.
@@ -655,7 +707,10 @@ async def generate_voice_with_rvc(
     try:
         uploaded_audio_path = await save_rvc_upload(file)
 
-        validate_audio_file_with_ffprobe(uploaded_audio_path)
+        # Mobile WebKit/Safari WebM recordings can be valid audio but report
+        # Duration: N/A before conversion. So first validate only stream/container,
+        # then do strict duration validation after ffmpeg creates a clean WAV.
+        validate_uploaded_audio_file_before_conversion(uploaded_audio_path)
 
         wav_input_path = convert_audio_to_clean_wav(uploaded_audio_path)
 

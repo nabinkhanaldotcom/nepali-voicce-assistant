@@ -32,7 +32,7 @@ export interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private baseUrl = 'http://localhost:8000';
+  private baseUrl = '/api';
 
   private readonly tokenStorageKey = 'nepali_voice_access_token';
   private readonly usernameStorageKey = 'nepali_voice_username';

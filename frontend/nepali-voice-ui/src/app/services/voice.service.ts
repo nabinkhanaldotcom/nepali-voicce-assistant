@@ -95,7 +95,7 @@ export interface TranscribeAndMatchResponse {
 export class VoiceService {
   // FastAPI backend base URL.
   // Later, move this to Angular environment config for hosting.
-  private baseUrl = 'http://localhost:8000';
+  private baseUrl = '/api';
 
   constructor(private http: HttpClient) {}
 
