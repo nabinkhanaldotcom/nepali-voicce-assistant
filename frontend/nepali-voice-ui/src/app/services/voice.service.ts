@@ -27,6 +27,12 @@ export type AudioDownloadFormat =
   | 'mp3'
   | 'm4a';
 
+export type RvcPitchMethod =
+  | 'harvest'
+  | 'crepe'
+  | 'rmvpe'
+  | 'pm';
+
 export interface UploadAudioResponse {
   message: string;
   originalFilename: string;
@@ -171,6 +177,42 @@ export class VoiceService {
     return this.http.post<TranscribeAndMatchResponse>(
       `${this.baseUrl}/transcribe-and-match`,
       formData
+    );
+  }
+
+  /**
+   * Generate uncle-style voice using your trained local RVC model.
+   *
+   * Backend endpoint:
+   * POST http://localhost:8000/generate-voice
+   *
+   * Beginner explanation:
+   * Angular sends the recorded/uploaded audio to FastAPI.
+   * FastAPI saves it, converts it to clean WAV, calls .venv-rvc,
+   * runs your .pth + .index model, and returns generated WAV audio.
+   */
+  generateVoiceWithRvc(
+    audioFile: Blob,
+    fileName: string,
+    pitch: number,
+    indexRate: number,
+    protect: number,
+    method: RvcPitchMethod
+  ): Observable<Blob> {
+    const formData = new FormData();
+
+    formData.append('file', audioFile, fileName);
+    formData.append('pitch', String(pitch));
+    formData.append('indexRate', String(indexRate));
+    formData.append('protect', String(protect));
+    formData.append('method', method);
+
+    return this.http.post(
+      `${this.baseUrl}/generate-voice`,
+      formData,
+      {
+        responseType: 'blob'
+      }
     );
   }
 

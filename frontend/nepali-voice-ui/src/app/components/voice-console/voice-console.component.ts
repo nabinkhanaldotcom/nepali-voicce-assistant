@@ -11,7 +11,8 @@
 // - send audio to FastAPI
 // - show transcript and matched clip
 // - play matched clip
-// - download preview/matched clip as weba/wav/mp3/m4a
+// - generate uncle-style voice using local RVC
+// - download preview/matched/generated audio
 
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -30,6 +31,7 @@ import {
   AudioDownloadFormat,
   MatchedClip,
   OpenAiTranscriptionModel,
+  RvcPitchMethod,
   TonePreset,
   TranscribeAndMatchResponse,
   TranscriptionProvider,
@@ -54,6 +56,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   isPreparingRecording = false;
   isProcessing = false;
   isDownloadingAudio = false;
+  isGeneratingVoice = false;
 
   // -----------------------------
   // Text / error output
@@ -67,6 +70,15 @@ export class VoiceConsoleComponent implements OnDestroy {
   selectedProvider: TranscriptionProvider = 'local_whisper';
   selectedOpenAiModel: OpenAiTranscriptionModel = 'gpt-4o-mini-transcribe';
   selectedTonePreset: TonePreset = 'original';
+
+  // -----------------------------
+  // RVC voice generation settings
+  // -----------------------------
+  // These defaults match the settings that worked from PowerShell.
+  rvcPitch = 6;
+  rvcIndexRate = 0.75;
+  rvcProtect = 0.5;
+  rvcMethod: RvcPitchMethod = 'rmvpe';
 
   // -----------------------------
   // Download format selection
@@ -98,12 +110,19 @@ export class VoiceConsoleComponent implements OnDestroy {
   matchedClipUrl: string | null = null;
 
   // -----------------------------
-  // Future output-generation placeholder
+  // Future output-generation placeholder returned by transcription endpoint
   // -----------------------------
   outputDecisionStatus = '';
   outputDecisionMessage = '';
   outputDecisionTonePreset = '';
   outputDecisionShouldGenerateVoice = false;
+
+  // -----------------------------
+  // Generated RVC voice result
+  // -----------------------------
+  generatedVoiceBlob: Blob | null = null;
+  generatedVoiceUrl: string | null = null;
+  generatedVoiceFileName = '';
 
   // -----------------------------
   // Audio source info
@@ -134,6 +153,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   // Request / playback management
   // -----------------------------
   private currentRequestSubscription: Subscription | null = null;
+  private currentGenerateSubscription: Subscription | null = null;
   private currentDownloadSubscription: Subscription | null = null;
   private currentPlaybackAudio: HTMLAudioElement | null = null;
 
@@ -147,6 +167,21 @@ export class VoiceConsoleComponent implements OnDestroy {
     private voiceService: VoiceService,
     private ngZone: NgZone
   ) {}
+
+  /**
+   * Label used for the generated voice download button.
+   *
+   * RVC returns WAV audio from FastAPI.
+   * If the global selected format is WEBA, we keep generated output as WAV
+   * instead of pretending WAV bytes are real WEBA bytes.
+   */
+  get generatedVoiceDownloadFormatLabel(): string {
+    if (this.selectedDownloadFormat === 'weba') {
+      return 'WAV';
+    }
+
+    return this.selectedDownloadFormat.toUpperCase();
+  }
 
   /**
    * Close the custom preview menu when user clicks elsewhere.
@@ -174,6 +209,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.stopCurrentAudioPlayback();
     this.stopPreviewPlayback();
     this.clearResultsOnly();
+    this.clearGeneratedVoiceOnly();
 
     this.isPreparingRecording = true;
 
@@ -265,6 +301,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.stopCurrentAudioPlayback();
     this.stopPreviewPlayback();
     this.clearResultsOnly();
+    this.clearGeneratedVoiceOnly();
 
     const previewUrl = URL.createObjectURL(selectedFile);
 
@@ -277,7 +314,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Send the current audio to FastAPI.
+   * Send the current audio to FastAPI for transcription + phrase matching.
    */
   sendToBackend(): void {
     this.errorMessage = '';
@@ -329,6 +366,59 @@ export class VoiceConsoleComponent implements OnDestroy {
 
           this.isProcessing = false;
           this.currentRequestSubscription = null;
+        }
+      });
+  }
+
+  /**
+   * Generate uncle-style voice using the local RVC model.
+   */
+  generateUncleVoice(): void {
+    this.errorMessage = '';
+
+    if (!this.lastAudioBlob) {
+      this.errorMessage = 'No audio available. Please record or choose a file first.';
+      return;
+    }
+
+    if (!this.selectedAudioName) {
+      this.errorMessage = 'Audio file name is missing.';
+      return;
+    }
+
+    if (this.currentGenerateSubscription) {
+      this.currentGenerateSubscription.unsubscribe();
+      this.currentGenerateSubscription = null;
+    }
+
+    this.clearGeneratedVoiceOnly();
+    this.isGeneratingVoice = true;
+
+    this.currentGenerateSubscription = this.voiceService
+      .generateVoiceWithRvc(
+        this.lastAudioBlob,
+        this.selectedAudioName,
+        this.rvcPitch,
+        this.rvcIndexRate,
+        this.rvcProtect,
+        this.rvcMethod
+      )
+      .subscribe({
+        next: (generatedBlob: Blob) => {
+          this.generatedVoiceBlob = generatedBlob;
+          this.generatedVoiceFileName = 'generated-uncle-voice.wav';
+          this.generatedVoiceUrl = URL.createObjectURL(generatedBlob);
+
+          this.isGeneratingVoice = false;
+          this.currentGenerateSubscription = null;
+        },
+        error: (err: unknown) => {
+          console.error('RVC voice generation error:', err);
+
+          this.errorMessage = this.buildBackendErrorMessage(err);
+
+          this.isGeneratingVoice = false;
+          this.currentGenerateSubscription = null;
         }
       });
   }
@@ -457,7 +547,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Download the currently recorded/uploaded preview audio as weba/wav/mp3/m4a.
+   * Download the currently recorded/uploaded preview audio.
    */
   downloadPreviewAudio(): void {
     this.errorMessage = '';
@@ -478,7 +568,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
-   * Download the matched phrase clip as weba/wav/mp3/m4a.
+   * Download the matched phrase clip.
    */
   downloadMatchedClip(): void {
     this.errorMessage = '';
@@ -519,6 +609,38 @@ export class VoiceConsoleComponent implements OnDestroy {
           this.isDownloadingAudio = false;
         });
       });
+  }
+
+  /**
+   * Download generated RVC voice.
+   *
+   * Important:
+   * The /generate-voice endpoint returns WAV audio.
+   * If the global selected format is WEBA, we keep generated voice as WAV.
+   * If the user selects MP3/M4A/WAV, we use the backend conversion endpoint.
+   */
+  downloadGeneratedVoice(): void {
+    this.errorMessage = '';
+
+    if (!this.generatedVoiceBlob) {
+      this.errorMessage = 'No generated voice is available to download.';
+      return;
+    }
+
+    if (this.selectedDownloadFormat === 'weba') {
+      this.downloadBlobDirectly(
+        this.generatedVoiceBlob,
+        this.generatedVoiceFileName || 'generated-uncle-voice.wav'
+      );
+
+      return;
+    }
+
+    this.convertAndDownloadAudioBlob(
+      this.generatedVoiceBlob,
+      this.generatedVoiceFileName || 'generated-uncle-voice.wav',
+      'generated-uncle-voice'
+    );
   }
 
   /**
@@ -650,6 +772,12 @@ export class VoiceConsoleComponent implements OnDestroy {
           .join(' | ');
       }
 
+      // Blob error handling:
+      // When responseType is "blob", Angular may store backend error JSON as a Blob.
+      if (err.error instanceof Blob) {
+        return `Backend request failed with status ${err.status}. Check FastAPI terminal logs.`;
+      }
+
       // Sometimes the backend may return plain text instead of JSON.
       if (typeof err.error === 'string') {
         return err.error;
@@ -777,6 +905,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
 
     this.clearResultsOnly();
+    this.clearGeneratedVoiceOnly();
   }
 
   /**
@@ -831,12 +960,30 @@ export class VoiceConsoleComponent implements OnDestroy {
   }
 
   /**
+   * Clear generated RVC voice result.
+   */
+  private clearGeneratedVoiceOnly(): void {
+    this.generatedVoiceBlob = null;
+    this.generatedVoiceFileName = '';
+
+    if (this.generatedVoiceUrl) {
+      URL.revokeObjectURL(this.generatedVoiceUrl);
+      this.generatedVoiceUrl = null;
+    }
+  }
+
+  /**
    * Cleanup when component is destroyed.
    */
   ngOnDestroy(): void {
     if (this.currentRequestSubscription) {
       this.currentRequestSubscription.unsubscribe();
       this.currentRequestSubscription = null;
+    }
+
+    if (this.currentGenerateSubscription) {
+      this.currentGenerateSubscription.unsubscribe();
+      this.currentGenerateSubscription = null;
     }
 
     if (this.currentDownloadSubscription) {
@@ -858,5 +1005,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     if (this.recordedAudioUrl) {
       URL.revokeObjectURL(this.recordedAudioUrl);
     }
+
+    this.clearGeneratedVoiceOnly();
   }
 }
