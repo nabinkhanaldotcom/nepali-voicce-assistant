@@ -1,13 +1,13 @@
 # backend_api/app/services/rvc_generation_service.py
 #
-# Phase 3C - RVC voice generation service
+# Phase 3C / security update - RVC voice generation service
 #
 # Beginner explanation:
 # This service connects your normal FastAPI backend to the separate RVC environment.
 #
 # Your normal backend runs in:
 #
-#   backend_api/venv
+#   backend_api/.venv
 #
 # Your RVC engine runs in:
 #
@@ -26,13 +26,27 @@
 #
 #   backend_api/rvc_engine/run_rvc_inference.py
 #
-# This is similar to a Java app calling another command-line tool with ProcessBuilder.
+# Security notes:
+# - The backend accepts exactly one file from the route.
+# - The file extension is allowlisted.
+# - The content type is checked when the browser provides it.
+# - The file size is capped.
+# - ffprobe must prove the file is audio-only.
+# - ffprobe must prove the duration is under the limit.
+# - The uploaded file is saved with a generated UUID filename.
+# - The uploaded original file is never served publicly.
+# - The uploaded file is converted to a clean WAV before RVC.
+# - ffmpeg and RVC subprocess calls have timeouts.
+# - Temporary upload/input files are deleted after processing.
 
 from __future__ import annotations
 
+import json
+import math
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
@@ -63,7 +77,23 @@ RVC_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RVC_WAV_INPUT_DIR.mkdir(parents=True, exist_ok=True)
 RVC_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Audio types we will accept from Angular.
+# Current safety limits.
+#
+# Frontend recording limit is 60 seconds.
+# Backend allows a small buffer because encoded browser audio may be slightly longer.
+MAX_RVC_UPLOAD_BYTES = int(os.getenv("MAX_RVC_UPLOAD_BYTES", str(25 * 1024 * 1024)))
+MAX_RVC_DURATION_SECONDS = float(os.getenv("MAX_RVC_DURATION_SECONDS", "65"))
+
+FFPROBE_TIMEOUT_SECONDS = int(os.getenv("FFPROBE_TIMEOUT_SECONDS", "15"))
+FFMPEG_TIMEOUT_SECONDS = int(os.getenv("FFMPEG_TIMEOUT_SECONDS", "45"))
+RVC_SUBPROCESS_TIMEOUT_SECONDS = int(os.getenv("RVC_SUBPROCESS_TIMEOUT_SECONDS", "180"))
+
+# Audio extensions we accept from Angular or curl.
+#
+# Note:
+# .webm can be audio-only browser recording.
+# .mp4 is intentionally not allowed here to avoid accepting normal video files.
+# If iOS later records as .mp4, we should add it only after testing audio-only ffprobe validation.
 SUPPORTED_RVC_INPUT_EXTENSIONS = {
     ".wav",
     ".mp3",
@@ -71,10 +101,50 @@ SUPPORTED_RVC_INPUT_EXTENSIONS = {
     ".weba",
     ".webm",
     ".ogg",
-    ".mp4",
     ".mpeg",
     ".mpga",
     ".flac",
+}
+
+# Browser-provided content type is not trusted by itself,
+# but it is still useful as an early reject.
+#
+# Some browsers may use video/webm for MediaRecorder even when the stream is audio-only,
+# so we allow video/webm here but still require ffprobe to prove the file has audio streams only.
+#
+# curl may send application/octet-stream, so we allow it here and rely on ffprobe validation.
+SUPPORTED_RVC_CONTENT_TYPES = {
+    "audio/wav",
+    "audio/x-wav",
+    "audio/wave",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/aac",
+    "audio/webm",
+    "video/webm",
+    "audio/ogg",
+    "application/ogg",
+    "audio/flac",
+    "audio/x-flac",
+    "application/octet-stream",
+}
+
+SUPPORTED_FFPROBE_FORMATS = {
+    "wav",
+    "mp3",
+    "mov",
+    "mp4",
+    "m4a",
+    "3gp",
+    "3g2",
+    "mj2",
+    "matroska",
+    "webm",
+    "ogg",
+    "flac",
+    "mpeg",
 }
 
 SUPPORTED_RVC_METHODS = {
@@ -83,6 +153,25 @@ SUPPORTED_RVC_METHODS = {
     "rmvpe",
     "pm",
 }
+
+
+def delete_file_safely(path: Path | str | None) -> None:
+    """
+    Delete a file without crashing the request if cleanup fails.
+
+    This is used for temporary uploads and generated output files.
+    """
+    if not path:
+        return
+
+    try:
+        file_path = Path(path)
+
+        if file_path.exists() and file_path.is_file():
+            file_path.unlink()
+    except OSError:
+        # Do not expose cleanup errors to the user.
+        pass
 
 
 def validate_existing_file(path: Path, label: str) -> None:
@@ -151,11 +240,25 @@ def validate_rvc_settings(
         )
 
 
-async def save_rvc_upload(file: UploadFile) -> Path:
+def normalize_content_type(content_type: str | None) -> str:
     """
-    Save uploaded audio to backend_api/uploads/rvc_generation.
+    Normalize content type from browser.
 
-    FastAPI UploadFile is similar to MultipartFile in Spring.
+    Example:
+      audio/webm;codecs=opus -> audio/webm
+    """
+    if not content_type:
+        return ""
+
+    return content_type.split(";")[0].strip().lower()
+
+
+def validate_upload_metadata(file: UploadFile) -> str:
+    """
+    Validate filename extension and browser-provided content type.
+
+    This does not prove the file is safe.
+    ffprobe validation later is the stronger check.
     """
     if not file.filename:
         raise HTTPException(
@@ -163,21 +266,58 @@ async def save_rvc_upload(file: UploadFile) -> Path:
             detail="No audio file name was provided.",
         )
 
-    file_extension = Path(file.filename).suffix.lower()
+    file_extension = Path(file.filename).suffix.lower().strip()
 
     if not file_extension:
-        file_extension = ".webm"
+        raise HTTPException(
+            status_code=400,
+            detail="Audio file must have a file extension.",
+        )
 
     if file_extension not in SUPPORTED_RVC_INPUT_EXTENSIONS:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Unsupported audio type '{file_extension}'. "
-                f"Allowed types: {sorted(SUPPORTED_RVC_INPUT_EXTENSIONS)}"
+                f"Unsupported audio file extension '{file_extension}'. "
+                f"Allowed extensions: {sorted(SUPPORTED_RVC_INPUT_EXTENSIONS)}"
             ),
         )
 
-    file_bytes = await file.read()
+    content_type = normalize_content_type(file.content_type)
+
+    if content_type and content_type not in SUPPORTED_RVC_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unsupported uploaded content type '{file.content_type}'. "
+                "Please upload an audio file."
+            ),
+        )
+
+    return file_extension
+
+
+async def save_rvc_upload(file: UploadFile) -> Path:
+    """
+    Save uploaded audio to backend_api/uploads/rvc_generation.
+
+    FastAPI UploadFile is similar to MultipartFile in Spring.
+
+    Security:
+    - Read only up to MAX_RVC_UPLOAD_BYTES + 1.
+    - Reject if too large.
+    - Never trust the original filename for storage.
+    - Store with UUID filename.
+    """
+    file_extension = validate_upload_metadata(file)
+
+    file_bytes = await file.read(MAX_RVC_UPLOAD_BYTES + 1)
+
+    if len(file_bytes) > MAX_RVC_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="Audio file is too large. Maximum upload size is 25 MB.",
+        )
 
     if not file_bytes:
         raise HTTPException(
@@ -193,15 +333,155 @@ async def save_rvc_upload(file: UploadFile) -> Path:
     return saved_file_path
 
 
+def run_ffprobe(audio_path: Path) -> dict[str, Any]:
+    """
+    Run ffprobe and return parsed JSON metadata.
+
+    ffprobe is used as the real media validation step.
+    A renamed .exe/.js/.html file should fail this check.
+    """
+    command = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=format_name,duration:stream=index,codec_type,codec_name",
+        "-of",
+        "json",
+        str(audio_path),
+    ]
+
+    try:
+        completed_process = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=FFPROBE_TIMEOUT_SECONDS,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "ffprobe was not found. Install ffmpeg and make sure ffprobe "
+                "is available from PowerShell using: ffprobe -version"
+            ),
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Audio validation timed out. Please upload a shorter audio file.",
+        ) from exc
+
+    if completed_process.returncode != 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Uploaded file could not be validated as audio. "
+                f"ffprobe error: {completed_process.stderr}"
+            ),
+        )
+
+    try:
+        return json.loads(completed_process.stdout)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not parse audio validation result.",
+        ) from exc
+
+
+def validate_audio_file_with_ffprobe(audio_path: Path) -> float:
+    """
+    Validate that the uploaded file is really an audio-only media file.
+
+    This is stronger than trusting:
+    - filename
+    - extension
+    - browser content type
+
+    Rules:
+    - Must contain at least one media stream.
+    - Every stream must be audio.
+    - Duration must be readable.
+    - Duration must be under MAX_RVC_DURATION_SECONDS.
+    - Container format must be one of the allowed audio-related formats.
+    """
+    probe_result = run_ffprobe(audio_path)
+
+    streams = probe_result.get("streams", [])
+
+    if not streams:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file does not contain an audio stream.",
+        )
+
+    stream_types = {
+        str(stream.get("codec_type", "")).lower()
+        for stream in streams
+    }
+
+    if stream_types != {"audio"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file must be audio-only. Video/data/subtitle streams are not allowed.",
+        )
+
+    format_info = probe_result.get("format", {})
+    format_name = str(format_info.get("format_name", "")).lower()
+    format_parts = {
+        part.strip()
+        for part in format_name.split(",")
+        if part.strip()
+    }
+
+    if format_parts and not format_parts.intersection(SUPPORTED_FFPROBE_FORMATS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported audio container format: {format_name}",
+        )
+
+    duration_text = str(format_info.get("duration", "")).strip()
+
+    try:
+        duration_seconds = float(duration_text)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read audio duration.",
+        ) from exc
+
+    if not math.isfinite(duration_seconds) or duration_seconds <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Audio duration is invalid.",
+        )
+
+    if duration_seconds > MAX_RVC_DURATION_SECONDS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Audio is too long. Maximum allowed duration is "
+                f"{MAX_RVC_DURATION_SECONDS:g} seconds."
+            ),
+        )
+
+    return duration_seconds
+
+
 def convert_audio_to_clean_wav(input_path: Path) -> Path:
     """
     Convert uploaded audio to a clean WAV file before RVC.
 
     Why:
-    Browser recording may be webm/weba.
+    Browser recording may be webm/weba/m4a.
     RVC works more predictably when we pass a normal WAV file.
 
-    We use ffmpeg because it handles many audio formats.
+    Security:
+    - We map only the first audio stream.
+    - We explicitly drop video, subtitle, and data streams.
+    - The output is a new clean WAV file created by ffmpeg.
     """
     output_path = RVC_WAV_INPUT_DIR / f"{input_path.stem}_rvc_input.wav"
 
@@ -210,6 +490,11 @@ def convert_audio_to_clean_wav(input_path: Path) -> Path:
         "-y",
         "-i",
         str(input_path),
+        "-map",
+        "0:a:0",
+        "-vn",
+        "-sn",
+        "-dn",
         "-ac",
         "1",
         "-ar",
@@ -225,6 +510,7 @@ def convert_audio_to_clean_wav(input_path: Path) -> Path:
             check=False,
             capture_output=True,
             text=True,
+            timeout=FFMPEG_TIMEOUT_SECONDS,
         )
     except FileNotFoundError as exc:
         raise HTTPException(
@@ -233,6 +519,11 @@ def convert_audio_to_clean_wav(input_path: Path) -> Path:
                 "ffmpeg was not found. Install ffmpeg and make sure it is available "
                 "from PowerShell using: ffmpeg -version"
             ),
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Audio conversion timed out. Please upload a shorter audio file.",
         ) from exc
 
     if completed_process.returncode != 0:
@@ -293,13 +584,23 @@ def run_rvc_wrapper_script(
         method,
     ]
 
-    completed_process = subprocess.run(
-        command,
-        cwd=str(BACKEND_ROOT),
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        completed_process = subprocess.run(
+            command,
+            cwd=str(BACKEND_ROOT),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=RVC_SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "RVC voice generation timed out. "
+                "Try a shorter audio file or use a faster server."
+            ),
+        ) from exc
 
     if completed_process.returncode != 0:
         raise HTTPException(
@@ -331,11 +632,18 @@ async def generate_voice_with_rvc(
     Main service function used by the FastAPI route.
 
     Full flow:
-    1. Save uploaded audio
-    2. Convert it to clean WAV
-    3. Run RVC wrapper script
-    4. Return path to generated WAV
+    1. Validate RVC settings
+    2. Save uploaded audio with a safe generated filename
+    3. Validate the uploaded file with ffprobe
+    4. Convert it to clean WAV
+    5. Validate the clean WAV
+    6. Run RVC wrapper script
+    7. Return path to generated WAV
+    8. Delete temporary upload/input files
     """
+    uploaded_audio_path: Path | None = None
+    wav_input_path: Path | None = None
+
     normalized_method = normalize_rvc_method(method)
 
     validate_rvc_settings(
@@ -344,15 +652,24 @@ async def generate_voice_with_rvc(
         protect=protect,
     )
 
-    uploaded_audio_path = await save_rvc_upload(file)
-    wav_input_path = convert_audio_to_clean_wav(uploaded_audio_path)
+    try:
+        uploaded_audio_path = await save_rvc_upload(file)
 
-    generated_audio_path = run_rvc_wrapper_script(
-        wav_input_path=wav_input_path,
-        pitch=pitch,
-        index_rate=index_rate,
-        protect=protect,
-        method=normalized_method,
-    )
+        validate_audio_file_with_ffprobe(uploaded_audio_path)
 
-    return generated_audio_path
+        wav_input_path = convert_audio_to_clean_wav(uploaded_audio_path)
+
+        validate_audio_file_with_ffprobe(wav_input_path)
+
+        generated_audio_path = run_rvc_wrapper_script(
+            wav_input_path=wav_input_path,
+            pitch=pitch,
+            index_rate=index_rate,
+            protect=protect,
+            method=normalized_method,
+        )
+
+        return generated_audio_path
+    finally:
+        delete_file_safely(uploaded_audio_path)
+        delete_file_safely(wav_input_path)

@@ -1,26 +1,32 @@
 # backend_api/app/routes/rvc.py
 #
-# Phase 3C - RVC voice generation route
+# Phase 3C / security update - RVC voice generation route
 #
 # Beginner explanation:
 # This route is like a Spring Controller endpoint.
 #
-# Angular will eventually call:
+# Angular calls:
 #
 #   POST /generate-voice
 #
-# with an audio file.
+# with one audio file.
 #
-# This route will:
-# - receive the file
-# - receive RVC settings like pitch/indexRate/protect/method
-# - call rvc_generation_service
-# - return generated WAV audio to the browser
+# This route now:
+# - requires exactly one uploaded file
+# - rejects multiple uploaded files
+# - receives RVC settings like pitch/indexRate/protect/method
+# - calls rvc_generation_service
+# - returns generated WAV audio to the browser
+# - deletes the generated server-side output file after sending it
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
-from app.services.rvc_generation_service import generate_voice_with_rvc
+from app.services.rvc_generation_service import (
+    delete_file_safely,
+    generate_voice_with_rvc,
+)
 
 
 router = APIRouter()
@@ -28,17 +34,17 @@ router = APIRouter()
 
 @router.post("/generate-voice")
 async def generate_voice(
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(..., alias="file"),
     pitch: int = Form(6),
     indexRate: float = Form(0.75),
     protect: float = Form(0.5),
     method: str = Form("rmvpe"),
 ):
     """
-    Generate uncle-style voice using the local RVC model.
+    Generate Artist's Voice using the local RVC model.
 
     Form fields:
-    - file: uploaded audio file
+    - file: exactly one uploaded audio file
     - pitch: semitone shift. Try 0, 4, 6, 8, 10.
     - indexRate: search feature ratio. Good default: 0.75.
     - protect: protect voiceless consonants/breath sounds. Good default: 0.5.
@@ -47,8 +53,14 @@ async def generate_voice(
     Returns:
     - generated WAV audio file
     """
+    if len(files) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Exactly one audio file must be uploaded.",
+        )
+
     generated_audio_path = await generate_voice_with_rvc(
-        file=file,
+        file=files[0],
         pitch=pitch,
         index_rate=indexRate,
         protect=protect,
@@ -59,4 +71,5 @@ async def generate_voice(
         path=str(generated_audio_path),
         media_type="audio/wav",
         filename=generated_audio_path.name,
+        background=BackgroundTask(delete_file_safely, generated_audio_path),
     )

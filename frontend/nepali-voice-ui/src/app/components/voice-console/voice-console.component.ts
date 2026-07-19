@@ -2,6 +2,7 @@
 //
 // This component controls the browser UI:
 // - record audio
+// - stop recording automatically after 60 seconds
 // - upload audio
 // - custom audio preview player
 // - select provider
@@ -11,7 +12,7 @@
 // - send audio to FastAPI
 // - show transcript and matched clip
 // - play matched clip
-// - generate uncle-style voice using local RVC
+// - generate Artist's Voice using local RVC
 // - download preview/matched/generated audio
 
 import { CommonModule } from '@angular/common';
@@ -50,6 +51,32 @@ export class VoiceConsoleComponent implements OnDestroy {
   previewAudioElement?: ElementRef<HTMLAudioElement>;
 
   // -----------------------------
+  // Recording limits
+  // -----------------------------
+  readonly maxRecordingSeconds = 60;
+
+  recordingElapsedSeconds = 0;
+  recordingRemainingSeconds = this.maxRecordingSeconds;
+
+  private recordingLimitTimeoutId: number | null = null;
+  private recordingTimerIntervalId: number | null = null;
+
+  // -----------------------------
+  // Frontend file allowlist
+  // -----------------------------
+  readonly allowedAudioExtensions = [
+    '.wav',
+    '.mp3',
+    '.m4a',
+    '.weba',
+    '.webm',
+    '.ogg',
+    '.mpeg',
+    '.mpga',
+    '.flac'
+  ];
+
+  // -----------------------------
   // UI states
   // -----------------------------
   isRecording = false;
@@ -83,7 +110,6 @@ export class VoiceConsoleComponent implements OnDestroy {
   // -----------------------------
   // Download format selection
   // -----------------------------
-  // WEBA is the default because browser recording is created as webm/web audio.
   selectedDownloadFormat: AudioDownloadFormat = 'weba';
 
   // -----------------------------
@@ -148,6 +174,15 @@ export class VoiceConsoleComponent implements OnDestroy {
   private audioChunks: Blob[] = [];
   private currentRecordingStream: MediaStream | null = null;
   private latestRecordingRequestId = 0;
+  private currentRecordingMimeType = '';
+
+  private readonly preferredRecordingMimeTypes = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/ogg',
+    'audio/mp4'
+  ];
 
   // -----------------------------
   // Request / playback management
@@ -168,13 +203,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     private ngZone: NgZone
   ) {}
 
-  /**
-   * Label used for the generated voice download button.
-   *
-   * RVC returns WAV audio from FastAPI.
-   * If the global selected format is WEBA, we keep generated output as WAV
-   * instead of pretending WAV bytes are real WEBA bytes.
-   */
   get generatedVoiceDownloadFormatLabel(): string {
     if (this.selectedDownloadFormat === 'weba') {
       return 'WAV';
@@ -183,17 +211,11 @@ export class VoiceConsoleComponent implements OnDestroy {
     return this.selectedDownloadFormat.toUpperCase();
   }
 
-  /**
-   * Close the custom preview menu when user clicks elsewhere.
-   */
   @HostListener('document:click')
   onDocumentClick(): void {
     this.previewMenuOpen = false;
   }
 
-  /**
-   * Start microphone recording.
-   */
   startRecording(): void {
     this.errorMessage = '';
 
@@ -225,7 +247,15 @@ export class VoiceConsoleComponent implements OnDestroy {
 
         this.audioChunks = [];
         this.currentRecordingStream = stream;
-        this.mediaRecorder = new MediaRecorder(stream);
+
+        const supportedMimeType = this.getBestSupportedRecordingMimeType();
+        this.currentRecordingMimeType = supportedMimeType;
+
+        const recorderOptions = supportedMimeType
+          ? { mimeType: supportedMimeType }
+          : undefined;
+
+        this.mediaRecorder = new MediaRecorder(stream, recorderOptions);
 
         this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
           if (event.data && event.data.size > 0) {
@@ -234,14 +264,23 @@ export class VoiceConsoleComponent implements OnDestroy {
         };
 
         this.mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+          const recorderMimeType =
+            this.currentRecordingMimeType ||
+            this.mediaRecorder?.mimeType ||
+            'audio/webm';
+
+          const audioBlob = new Blob(this.audioChunks, {
+            type: recorderMimeType
+          });
+
+          const extension = this.getFileExtensionForMimeType(recorderMimeType);
 
           this.ngZone.run(() => {
             this.setCurrentAudio(
               audioBlob,
               URL.createObjectURL(audioBlob),
               'recording',
-              'recording.webm'
+              `recording.${extension}`
             );
           });
         };
@@ -250,18 +289,18 @@ export class VoiceConsoleComponent implements OnDestroy {
 
         this.isPreparingRecording = false;
         this.isRecording = true;
+
+        this.startRecordingLimitTimer();
       })
       .catch((err: unknown) => {
         console.error('Microphone access error:', err);
 
         this.errorMessage = 'Could not access microphone. Please allow microphone permission.';
         this.isPreparingRecording = false;
+        this.clearRecordingLimitTimer();
       });
   }
 
-  /**
-   * Stop microphone recording.
-   */
   stopRecording(): void {
     if (this.mediaRecorder && this.isRecording) {
       this.mediaRecorder.stop();
@@ -276,12 +315,10 @@ export class VoiceConsoleComponent implements OnDestroy {
 
       this.isRecording = false;
       this.isPreparingRecording = false;
+      this.clearRecordingLimitTimer();
     }
   }
 
-  /**
-   * Handle file picker selection.
-   */
   onFileSelected(event: Event): void {
     this.errorMessage = '';
 
@@ -291,10 +328,18 @@ export class VoiceConsoleComponent implements OnDestroy {
       return;
     }
 
+    if (input.files.length !== 1) {
+      this.errorMessage = 'Please choose only one audio file.';
+      input.value = '';
+      return;
+    }
+
     const selectedFile = input.files[0];
 
-    if (!selectedFile.type.startsWith('audio/')) {
-      this.errorMessage = 'Please choose a valid audio file.';
+    if (!this.isAllowedAudioFile(selectedFile)) {
+      this.errorMessage =
+        'Please choose a valid audio file. Allowed types: WAV, MP3, M4A, WEBA, WEBM, OGG, MPEG, MPGA, FLAC.';
+      input.value = '';
       return;
     }
 
@@ -313,9 +358,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     );
   }
 
-  /**
-   * Send the current audio to FastAPI for transcription + phrase matching.
-   */
   sendToBackend(): void {
     this.errorMessage = '';
 
@@ -355,13 +397,6 @@ export class VoiceConsoleComponent implements OnDestroy {
         error: (err: unknown) => {
           console.error('Backend error:', err);
 
-          // Before this change, Angular always showed a generic message.
-          // Now we try to show the real FastAPI error detail if the backend sent one.
-          //
-          // Example FastAPI error response:
-          // {
-          //   "detail": "OPENAI_API_KEY is not set on the backend server."
-          // }
           this.errorMessage = this.buildBackendErrorMessage(err);
 
           this.isProcessing = false;
@@ -370,10 +405,7 @@ export class VoiceConsoleComponent implements OnDestroy {
       });
   }
 
-  /**
-   * Generate uncle-style voice using the local RVC model.
-   */
-  generateUncleVoice(): void {
+  generateArtistVoice(): void {
     this.errorMessage = '';
 
     if (!this.lastAudioBlob) {
@@ -406,7 +438,7 @@ export class VoiceConsoleComponent implements OnDestroy {
       .subscribe({
         next: (generatedBlob: Blob) => {
           this.generatedVoiceBlob = generatedBlob;
-          this.generatedVoiceFileName = 'generated-uncle-voice.wav';
+          this.generatedVoiceFileName = 'generated-artists-voice.wav';
           this.generatedVoiceUrl = URL.createObjectURL(generatedBlob);
 
           this.isGeneratingVoice = false;
@@ -423,9 +455,6 @@ export class VoiceConsoleComponent implements OnDestroy {
       });
   }
 
-  /**
-   * Custom preview audio loaded.
-   */
   onPreviewLoaded(): void {
     const audio = this.previewAudioElement?.nativeElement;
 
@@ -437,9 +466,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     audio.playbackRate = this.previewPlaybackSpeed;
   }
 
-  /**
-   * Custom preview audio time update.
-   */
   onPreviewTimeUpdate(): void {
     const audio = this.previewAudioElement?.nativeElement;
 
@@ -451,9 +477,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.previewDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
   }
 
-  /**
-   * Custom preview audio ended.
-   */
   onPreviewEnded(): void {
     this.isPreviewPlaying = false;
 
@@ -466,9 +489,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.previewCurrentTime = 0;
   }
 
-  /**
-   * Toggle custom preview play/pause.
-   */
   togglePreviewPlayback(): void {
     const audio = this.previewAudioElement?.nativeElement;
 
@@ -497,9 +517,6 @@ export class VoiceConsoleComponent implements OnDestroy {
       });
   }
 
-  /**
-   * Seek custom preview audio.
-   */
   seekPreviewAudio(event: Event): void {
     const audio = this.previewAudioElement?.nativeElement;
     const input = event.target as HTMLInputElement;
@@ -518,9 +535,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.previewCurrentTime = nextTime;
   }
 
-  /**
-   * Change playback speed for preview audio.
-   */
   setPreviewPlaybackSpeed(speed: number): void {
     this.previewPlaybackSpeed = speed;
 
@@ -531,9 +545,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
   }
 
-  /**
-   * Format seconds as m:ss.
-   */
   formatAudioTime(seconds: number): string {
     if (!Number.isFinite(seconds) || seconds < 0) {
       return '0:00';
@@ -546,9 +557,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
 
-  /**
-   * Download the currently recorded/uploaded preview audio.
-   */
   downloadPreviewAudio(): void {
     this.errorMessage = '';
     this.previewMenuOpen = false;
@@ -567,9 +575,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     );
   }
 
-  /**
-   * Download the matched phrase clip.
-   */
   downloadMatchedClip(): void {
     this.errorMessage = '';
 
@@ -611,14 +616,6 @@ export class VoiceConsoleComponent implements OnDestroy {
       });
   }
 
-  /**
-   * Download generated RVC voice.
-   *
-   * Important:
-   * The /generate-voice endpoint returns WAV audio.
-   * If the global selected format is WEBA, we keep generated voice as WAV.
-   * If the user selects MP3/M4A/WAV, we use the backend conversion endpoint.
-   */
   downloadGeneratedVoice(): void {
     this.errorMessage = '';
 
@@ -630,7 +627,7 @@ export class VoiceConsoleComponent implements OnDestroy {
     if (this.selectedDownloadFormat === 'weba') {
       this.downloadBlobDirectly(
         this.generatedVoiceBlob,
-        this.generatedVoiceFileName || 'generated-uncle-voice.wav'
+        this.generatedVoiceFileName || 'generated-artists-voice.wav'
       );
 
       return;
@@ -638,20 +635,11 @@ export class VoiceConsoleComponent implements OnDestroy {
 
     this.convertAndDownloadAudioBlob(
       this.generatedVoiceBlob,
-      this.generatedVoiceFileName || 'generated-uncle-voice.wav',
-      'generated-uncle-voice'
+      this.generatedVoiceFileName || 'generated-artists-voice.wav',
+      'generated-artists-voice'
     );
   }
 
-  /**
-   * Download a blob.
-   *
-   * If selectedDownloadFormat is "weba", we download directly in the browser
-   * as .weba. This keeps the default browser-style recording behavior.
-   *
-   * If selectedDownloadFormat is wav/mp3/m4a, we send it to FastAPI so
-   * ffmpeg can do a real audio conversion.
-   */
   private convertAndDownloadAudioBlob(
     audioBlob: Blob,
     sourceFileName: string,
@@ -701,9 +689,6 @@ export class VoiceConsoleComponent implements OnDestroy {
       });
   }
 
-  /**
-   * Download a Blob directly in the browser.
-   */
   private downloadBlobDirectly(
     audioBlob: Blob,
     downloadFileName: string
@@ -721,12 +706,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     URL.revokeObjectURL(downloadUrl);
   }
 
-  /**
-   * Get the file name without extension.
-   *
-   * Example:
-   * recording.webm -> recording
-   */
   private getBaseFileName(fileName: string, fallbackBaseName: string): string {
     const cleanedFileName = (fileName || '').trim();
 
@@ -743,19 +722,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     return cleanedFileName.substring(0, lastDotIndex) || fallbackBaseName;
   }
 
-  /**
-   * Build a useful error message from Angular/HTTP/backend errors.
-   *
-   * Beginner explanation:
-   * When FastAPI throws HTTPException, the browser usually receives a response like:
-   *
-   * {
-   *   "detail": "Some useful backend error message"
-   * }
-   *
-   * Angular wraps that response inside HttpErrorResponse.
-   * This helper method extracts the useful backend message and shows it in the UI.
-   */
   private buildBackendErrorMessage(err: unknown): string {
     if (err instanceof HttpErrorResponse) {
       const backendDetail = err.error?.detail;
@@ -764,21 +730,16 @@ export class VoiceConsoleComponent implements OnDestroy {
         return backendDetail;
       }
 
-      // FastAPI validation errors can sometimes return detail as an array.
-      // Example: missing field, invalid form field, wrong type, etc.
       if (Array.isArray(backendDetail)) {
         return backendDetail
           .map((item: unknown) => JSON.stringify(item))
           .join(' | ');
       }
 
-      // Blob error handling:
-      // When responseType is "blob", Angular may store backend error JSON as a Blob.
       if (err.error instanceof Blob) {
         return `Backend request failed with status ${err.status}. Check FastAPI terminal logs.`;
       }
 
-      // Sometimes the backend may return plain text instead of JSON.
       if (typeof err.error === 'string') {
         return err.error;
       }
@@ -793,9 +754,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     return 'Error sending audio to the backend. Check FastAPI terminal logs.';
   }
 
-  /**
-   * Copy backend response fields into component fields.
-   */
   private applyBackendResponse(res: TranscribeAndMatchResponse): void {
     this.recognizedText = res.transcript || '';
 
@@ -824,9 +782,6 @@ export class VoiceConsoleComponent implements OnDestroy {
       res.outputDecision?.shouldGenerateVoice ?? false;
   }
 
-  /**
-   * Play the matched saved phrase clip.
-   */
   playMatchedClip(): void {
     if (!this.matchedClipUrl) {
       this.errorMessage = 'No matched clip is available.';
@@ -851,9 +806,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     });
   }
 
-  /**
-   * Stop any currently playing matched clip.
-   */
   private stopCurrentAudioPlayback(): void {
     if (this.currentPlaybackAudio) {
       this.currentPlaybackAudio.pause();
@@ -862,9 +814,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
   }
 
-  /**
-   * Stop preview audio if it is playing.
-   */
   private stopPreviewPlayback(): void {
     const audio = this.previewAudioElement?.nativeElement;
 
@@ -875,17 +824,11 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.isPreviewPlaying = false;
   }
 
-  /**
-   * Toggle the custom preview menu.
-   */
   togglePreviewMenu(event: MouseEvent): void {
     event.stopPropagation();
     this.previewMenuOpen = !this.previewMenuOpen;
   }
 
-  /**
-   * Clear current selected/recorded audio.
-   */
   clearSelectedAudio(): void {
     this.stopCurrentAudioPlayback();
     this.stopPreviewPlayback();
@@ -906,11 +849,9 @@ export class VoiceConsoleComponent implements OnDestroy {
 
     this.clearResultsOnly();
     this.clearGeneratedVoiceOnly();
+    this.clearRecordingLimitTimer();
   }
 
-  /**
-   * Save the current audio blob and preview URL.
-   */
   private setCurrentAudio(
     audioBlob: Blob,
     previewUrl: string,
@@ -932,9 +873,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.isPreviewPlaying = false;
   }
 
-  /**
-   * Clear result values without clearing selected audio.
-   */
   private clearResultsOnly(): void {
     this.recognizedText = '';
 
@@ -959,9 +897,6 @@ export class VoiceConsoleComponent implements OnDestroy {
     this.outputDecisionShouldGenerateVoice = false;
   }
 
-  /**
-   * Clear generated RVC voice result.
-   */
   private clearGeneratedVoiceOnly(): void {
     this.generatedVoiceBlob = null;
     this.generatedVoiceFileName = '';
@@ -972,9 +907,91 @@ export class VoiceConsoleComponent implements OnDestroy {
     }
   }
 
-  /**
-   * Cleanup when component is destroyed.
-   */
+  private startRecordingLimitTimer(): void {
+    this.clearRecordingLimitTimer();
+
+    this.recordingElapsedSeconds = 0;
+    this.recordingRemainingSeconds = this.maxRecordingSeconds;
+
+    this.recordingTimerIntervalId = window.setInterval(() => {
+      this.recordingElapsedSeconds += 1;
+      this.recordingRemainingSeconds = Math.max(
+        this.maxRecordingSeconds - this.recordingElapsedSeconds,
+        0
+      );
+    }, 1000);
+
+    this.recordingLimitTimeoutId = window.setTimeout(() => {
+      if (this.isRecording) {
+        this.stopRecording();
+      }
+    }, this.maxRecordingSeconds * 1000);
+  }
+
+  private clearRecordingLimitTimer(): void {
+    if (this.recordingLimitTimeoutId !== null) {
+      window.clearTimeout(this.recordingLimitTimeoutId);
+      this.recordingLimitTimeoutId = null;
+    }
+
+    if (this.recordingTimerIntervalId !== null) {
+      window.clearInterval(this.recordingTimerIntervalId);
+      this.recordingTimerIntervalId = null;
+    }
+
+    this.recordingElapsedSeconds = 0;
+    this.recordingRemainingSeconds = this.maxRecordingSeconds;
+  }
+
+  private getBestSupportedRecordingMimeType(): string {
+    if (
+      typeof MediaRecorder === 'undefined' ||
+      typeof MediaRecorder.isTypeSupported !== 'function'
+    ) {
+      return '';
+    }
+
+    return this.preferredRecordingMimeTypes.find((mimeType: string) =>
+      MediaRecorder.isTypeSupported(mimeType)
+    ) || '';
+  }
+
+  private getFileExtensionForMimeType(mimeType: string): string {
+    const normalizedMimeType = (mimeType || '').toLowerCase();
+
+    if (normalizedMimeType.includes('mp4')) {
+      return 'm4a';
+    }
+
+    if (normalizedMimeType.includes('ogg')) {
+      return 'ogg';
+    }
+
+    if (normalizedMimeType.includes('mpeg') || normalizedMimeType.includes('mp3')) {
+      return 'mp3';
+    }
+
+    return 'webm';
+  }
+
+  private isAllowedAudioFile(file: File): boolean {
+    const extension = this.getLowercaseExtension(file.name);
+    const isAllowedExtension = this.allowedAudioExtensions.includes(extension);
+    const isAudioMimeType = file.type.toLowerCase().startsWith('audio/');
+
+    return isAllowedExtension || isAudioMimeType;
+  }
+
+  private getLowercaseExtension(fileName: string): string {
+    const lastDotIndex = fileName.lastIndexOf('.');
+
+    if (lastDotIndex < 0) {
+      return '';
+    }
+
+    return fileName.substring(lastDotIndex).toLowerCase();
+  }
+
   ngOnDestroy(): void {
     if (this.currentRequestSubscription) {
       this.currentRequestSubscription.unsubscribe();
@@ -993,6 +1010,7 @@ export class VoiceConsoleComponent implements OnDestroy {
 
     this.stopCurrentAudioPlayback();
     this.stopPreviewPlayback();
+    this.clearRecordingLimitTimer();
 
     if (this.currentRecordingStream) {
       this.currentRecordingStream

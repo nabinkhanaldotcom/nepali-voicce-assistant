@@ -4,7 +4,7 @@
   <p>
     Record audio in the browser or choose an audio file from your computer,
     then send it to the Python FastAPI backend for transcription, phrase matching,
-    and local RVC voice generation.
+    and local RVC Artist's Voice generation.
   </p>
 
   <section class="section">
@@ -28,21 +28,25 @@
       </button>
     </div>
 
+    <p class="hint">
+      Recording limit: {{ maxRecordingSeconds }} seconds.
+    </p>
+
     <p *ngIf="isPreparingRecording" class="status">
       Preparing microphone...
     </p>
 
     <p *ngIf="isRecording" class="status">
-      Recording...
+      Recording... {{ recordingRemainingSeconds }} seconds left
     </p>
 
     <div class="file-picker">
-      <label for="audioFileInput">Or choose an audio file:</label>
+      <label for="audioFileInput">Or choose one audio file:</label>
 
       <input
         id="audioFileInput"
         type="file"
-        accept="audio/*"
+        accept="audio/*,.wav,.mp3,.m4a,.weba,.webm,.ogg,.mpeg,.mpga,.flac"
         (change)="onFileSelected($event)"
         [disabled]="isRecording || isPreparingRecording || isProcessing || isGeneratingVoice"
       />
@@ -232,7 +236,7 @@
   </section>
 
   <section class="section">
-    <h3>3. RVC Voice Generation Options</h3>
+    <h3>3. RVC Artist's Voice Generation Options</h3>
 
     <div class="form-grid rvc-settings-grid">
       <label for="rvcPitch">
@@ -314,10 +318,10 @@
       <button
         type="button"
         class="primary-action"
-        (click)="generateUncleVoice()"
+        (click)="generateArtistVoice()"
         [disabled]="!lastAudioBlob || isProcessing || isGeneratingVoice"
       >
-        Generate Uncle Voice
+        Generate Artist's Voice
       </button>
     </div>
 
@@ -326,16 +330,16 @@
     </p>
 
     <p *ngIf="isGeneratingVoice" class="status">
-      Generating uncle-style voice...
+      Generating Artist's Voice...
     </p>
   </section>
 
   <section class="section">
-    <h3>5. Generated Uncle Voice</h3>
+    <h3>5. Generated Artist's Voice</h3>
 
     <div *ngIf="generatedVoiceUrl; else noGeneratedVoice">
       <p>
-        <strong>Generated voice is ready.</strong>
+        <strong>Generated Artist's Voice is ready.</strong>
       </p>
 
       <audio
@@ -350,7 +354,7 @@
           (click)="downloadGeneratedVoice()"
           [disabled]="!generatedVoiceBlob || isDownloadingAudio"
         >
-          Download Generated Voice as {{ generatedVoiceDownloadFormatLabel }}
+          Download Generated Artist's Voice as {{ generatedVoiceDownloadFormatLabel }}
         </button>
       </div>
 
@@ -361,7 +365,7 @@
 
     <ng-template #noGeneratedVoice>
       <p class="hint">
-        Record or choose audio, then click Generate Uncle Voice.
+        Record or choose audio, then click Generate Artist's Voice.
       </p>
     </ng-template>
   </section>

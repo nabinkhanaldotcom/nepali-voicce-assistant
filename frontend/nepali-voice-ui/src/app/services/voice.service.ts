@@ -94,17 +94,11 @@ export interface TranscribeAndMatchResponse {
 })
 export class VoiceService {
   // FastAPI backend base URL.
-  // Later, you can move this to Angular environment config.
+  // Later, move this to Angular environment config for hosting.
   private baseUrl = 'http://localhost:8000';
 
   constructor(private http: HttpClient) {}
 
-  /**
-   * Upload audio only.
-   *
-   * Backend endpoint:
-   * POST http://localhost:8000/upload-audio
-   */
   uploadAudio(
     audioFile: Blob,
     fileName: string
@@ -119,12 +113,6 @@ export class VoiceService {
     );
   }
 
-  /**
-   * Send audio to the backend for transcription only.
-   *
-   * Backend endpoint:
-   * POST http://localhost:8000/transcribe-audio
-   */
   transcribeAudio(
     audioFile: Blob,
     fileName: string,
@@ -146,19 +134,6 @@ export class VoiceService {
     );
   }
 
-  /**
-   * Send audio to the backend for transcription + phrase matching.
-   *
-   * Backend endpoint:
-   * POST http://localhost:8000/transcribe-and-match
-   *
-   * IMPORTANT:
-   * The backend expects multipart form-data:
-   * - file
-   * - provider
-   * - openaiModel
-   * - tonePreset
-   */
   transcribeAndMatch(
     audioFile: Blob,
     fileName: string,
@@ -181,15 +156,10 @@ export class VoiceService {
   }
 
   /**
-   * Generate uncle-style voice using your trained local RVC model.
+   * Generate Artist's Voice using your trained local RVC model.
    *
    * Backend endpoint:
    * POST http://localhost:8000/generate-voice
-   *
-   * Beginner explanation:
-   * Angular sends the recorded/uploaded audio to FastAPI.
-   * FastAPI saves it, converts it to clean WAV, calls .venv-rvc,
-   * runs your .pth + .index model, and returns generated WAV audio.
    */
   generateVoiceWithRvc(
     audioFile: Blob,
@@ -216,20 +186,6 @@ export class VoiceService {
     );
   }
 
-  /**
-   * Convert audio into a selected download format.
-   *
-   * Backend endpoint:
-   * POST http://localhost:8000/convert-audio-download
-   *
-   * Beginner explanation:
-   * The browser may record audio as webm.
-   * If the user wants mp3, wav, or m4a, the backend uses ffmpeg
-   * to make a real converted file.
-   *
-   * WEBA is not sent here. WEBA is downloaded directly from Angular
-   * because it is the browser/default recording-style format.
-   */
   convertAudioForDownload(
     audioFile: Blob,
     fileName: string,
@@ -249,15 +205,6 @@ export class VoiceService {
     );
   }
 
-  /**
-   * Convert backend relative clip URL into full browser URL.
-   *
-   * Backend returns:
-   * /phrase-clips/abuiiiAbuiii.m4a
-   *
-   * Browser needs:
-   * http://localhost:8000/phrase-clips/abuiiiAbuiii.m4a
-   */
   getFullClipUrl(relativeClipUrl: string | null): string | null {
     if (!relativeClipUrl) {
       return null;

@@ -1,8 +1,17 @@
+# backend_api/requirements.txt
+#
+# Normal FastAPI backend dependencies.
+#
+# IMPORTANT:
+# Do not put rvc-python, torch, fairseq, rmvpe, faiss, or other RVC-heavy packages here.
+# Those belong in the separate backend_api/.venv-rvc environment.
+
 fastapi==0.128.0
 uvicorn==0.40.0
 python-multipart==0.0.21
-faster-whisper
-rapidfuzz
+
 python-dotenv
 openai
+faster-whisper
+rapidfuzz
 av

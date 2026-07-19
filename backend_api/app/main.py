@@ -7,10 +7,12 @@
 # - it configures CORS so Angular can call the backend
 # - it serves static phrase clips from /phrase-clips
 # - it registers route files such as app/routes/audio.py and app/routes/rvc.py
+# - it adds basic security response headers
 
 from pathlib import Path
+import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -18,21 +20,61 @@ from app.routes.audio import router as audio_router
 from app.routes.rvc import router as rvc_router
 
 
-app = FastAPI(title="Nepali Voice Transcription / Voice Override API")
+app = FastAPI(title="Nepali Voice Transcription / Artist Voice Override API")
 
-# Angular runs on port 4200 during development.
-# Without CORS, the browser would block Angular from calling FastAPI.
-origins = [
-    "http://localhost:4200",
-]
+
+def get_allowed_origins() -> list[str]:
+    """
+    Read allowed frontend origins from environment variable.
+
+    Local default:
+      http://localhost:4200
+
+    Production example:
+      ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+    """
+    origins_value = os.getenv("ALLOWED_ORIGINS", "http://localhost:4200")
+
+    return [
+        origin.strip()
+        for origin in origins_value.split(",")
+        if origin.strip()
+    ]
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """
+    Add basic security headers.
+
+    These do not replace Nginx/Caddy/HTTPS security,
+    but they are a good baseline for the FastAPI app.
+    """
+    response = await call_next(request)
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Enable this in production only when the site is served through HTTPS.
+    #
+    # Example:
+    # ENABLE_HSTS=true
+    if os.getenv("ENABLE_HSTS", "false").lower() == "true":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+
+    return response
+
 
 # backend_api folder
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -67,7 +109,7 @@ app.include_router(rvc_router)
 def home():
     return {
         "message": "Backend is running",
-        "project": "Nepali Voice Transcription / Voice Override",
+        "project": "Nepali Voice Transcription / Artist Voice Override",
     }
 
 
