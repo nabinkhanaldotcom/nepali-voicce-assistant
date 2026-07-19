@@ -59,3 +59,7 @@ backend_api/outputs/rvc/
 
 # RVC local virtual environment
 backend_api/.venv-rvc/
+
+# Local RVC generated input files
+backend_api/data/rvc_generated_inputs/
+backend_api/uploads/rvc_generation/

@@ -6,7 +6,7 @@
 # - it creates the FastAPI app
 # - it configures CORS so Angular can call the backend
 # - it serves static phrase clips from /phrase-clips
-# - it registers route files such as app/routes/audio.py
+# - it registers route files such as app/routes/audio.py and app/routes/rvc.py
 
 from pathlib import Path
 
@@ -15,6 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.routes.audio import router as audio_router
+from app.routes.rvc import router as rvc_router
+
 
 app = FastAPI(title="Nepali Voice Transcription / Voice Override API")
 
@@ -55,6 +57,10 @@ app.mount(
 # POST /transcribe-audio
 # POST /transcribe-and-match
 app.include_router(audio_router)
+
+# Register RVC voice generation endpoint:
+# POST /generate-voice
+app.include_router(rvc_router)
 
 
 @app.get("/")
