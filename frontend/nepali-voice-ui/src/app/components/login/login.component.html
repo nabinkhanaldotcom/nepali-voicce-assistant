@@ -1,0 +1,59 @@
+<div class="login-page">
+  <div class="login-card">
+    <h1>Nepali Voice Assistant</h1>
+
+    <p class="subtitle">
+      Please log in to access Artist's Voice generation.
+    </p>
+
+    <form
+      class="login-form"
+      (ngSubmit)="login()"
+    >
+      <label for="username">
+        Username
+
+        <input
+          id="username"
+          name="username"
+          type="text"
+          autocomplete="username"
+          [(ngModel)]="username"
+          [disabled]="isLoggingIn"
+        />
+      </label>
+
+      <label for="password">
+        Password
+
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          [(ngModel)]="password"
+          [disabled]="isLoggingIn"
+        />
+      </label>
+
+      <button
+        type="submit"
+        [disabled]="isLoggingIn"
+      >
+        {{ isLoggingIn ? 'Logging in...' : 'Log in' }}
+      </button>
+    </form>
+
+    <p
+      *ngIf="errorMessage"
+      class="error"
+    >
+      ⚠️ {{ errorMessage }}
+    </p>
+
+    <!-- <p class="hint">
+      Demo access only. The backend also protects the API, so requests cannot
+      be sent without a valid login token.
+    </p> -->
+  </div>
+</div>

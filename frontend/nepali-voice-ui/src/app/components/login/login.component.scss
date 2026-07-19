@@ -1,0 +1,115 @@
+/* frontend/nepali-voice-ui/src/app/components/login/login.component.scss */
+
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at top left, rgba(73, 144, 226, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(88, 214, 141, 0.12), transparent 24%),
+    linear-gradient(180deg, #11161d 0%, #0d1218 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(23, 30, 39, 0.94);
+  color: #f4f7fb;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.login-card h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.subtitle {
+  margin: 0 0 22px;
+  color: #b9c4d0;
+  line-height: 1.5;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 11px 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #141b23;
+  color: #f5f8fc;
+  font-size: 15px;
+  outline: none;
+}
+
+.login-form input:focus {
+  border-color: rgba(110, 170, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(110, 170, 255, 0.12);
+}
+
+.login-form button {
+  margin-top: 4px;
+  padding: 11px 14px;
+  border: 1px solid rgba(144, 190, 255, 0.35);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #2d74d8, #1f5fb7);
+  color: #f7fbff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-form button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #3684f0, #2469c8);
+}
+
+.login-form button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(180, 44, 44, 0.16);
+  border: 1px solid rgba(255, 107, 107, 0.24);
+  color: #ffb6b6;
+  line-height: 1.5;
+}
+
+.hint {
+  margin-top: 18px;
+  color: #aeb9c5;
+  font-size: 14px;
+  line-height: 1.5;
+}

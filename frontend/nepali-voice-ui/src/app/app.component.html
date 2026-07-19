@@ -1,1 +1,28 @@
-<app-voice-console></app-voice-console>
+<ng-container *ngIf="isLoggedIn; else loginView">
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <h1>Artist's Voice Console</h1>
+
+        <p>
+          Logged in as {{ username || 'demo user' }}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        (click)="logout()"
+      >
+        Log out
+      </button>
+    </header>
+
+    <app-voice-console></app-voice-console>
+  </div>
+</ng-container>
+
+<ng-template #loginView>
+  <app-login
+    (loginSucceeded)="onLoginSucceeded()"
+  ></app-login>
+</ng-template>
