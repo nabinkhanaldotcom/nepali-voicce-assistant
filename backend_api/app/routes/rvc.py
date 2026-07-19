@@ -11,7 +11,8 @@
 #
 # with one audio file.
 #
-# This route now:
+# This route:
+# - requires login
 # - requires exactly one uploaded file
 # - rejects multiple uploaded files
 # - receives RVC settings like pitch/indexRate/protect/method
@@ -19,17 +20,20 @@
 # - returns generated WAV audio to the browser
 # - deletes the generated server-side output file after sending it
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
+from app.services.auth_service import require_authenticated_user
 from app.services.rvc_generation_service import (
     delete_file_safely,
     generate_voice_with_rvc,
 )
 
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(require_authenticated_user)]
+)
 
 
 @router.post("/generate-voice")

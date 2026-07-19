@@ -11,10 +11,19 @@
 # - return the service result
 #
 # Real logic should stay inside app/services/*.py.
+#
+# Security update:
+# This entire route file now requires login.
+# Angular must send:
+#
+#   Authorization: Bearer <token>
+#
+# or the backend rejects the request.
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import FileResponse
 
+from app.services.auth_service import require_authenticated_user
 from app.services.audio_service import (
     convert_audio_for_download,
     save_uploaded_audio,
@@ -22,7 +31,10 @@ from app.services.audio_service import (
     transcribe_uploaded_audio,
 )
 
-router = APIRouter()
+
+router = APIRouter(
+    dependencies=[Depends(require_authenticated_user)]
+)
 
 
 @router.post("/upload-audio")
@@ -33,7 +45,6 @@ async def upload_audio(file: UploadFile = File(...)):
     This endpoint does NOT transcribe.
     It is useful for testing file upload by itself.
     """
-
     result = await save_uploaded_audio(file)
 
     return {
@@ -59,7 +70,6 @@ async def transcribe_audio(
     No auto provider.
     No score-based fallback.
     """
-
     result = await transcribe_uploaded_audio(
         file=file,
         provider=provider,
@@ -90,7 +100,6 @@ async def transcribe_and_match(
     - gpt-4o-mini-transcribe
     - gpt-4o-transcribe
     """
-
     result = await transcribe_and_match_audio(
         file=file,
         provider=provider,
@@ -118,7 +127,6 @@ async def convert_audio_download(
     The backend uses ffmpeg to do real audio conversion.
     This is different from only renaming a file extension.
     """
-
     result = await convert_audio_for_download(
         file=file,
         output_format=outputFormat,

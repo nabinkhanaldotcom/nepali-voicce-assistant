@@ -12,22 +12,69 @@ Thumbs.db
 **/*.pyc
 __pycache__/
 **/__pycache__/
-
-# -------------------------
-# Python virtual env / IDE
-# -------------------------
-venv/
-.venv/
-.idea/
-.vscode/
-.env
 .pytest_cache/
 
 # -------------------------
-# Backend generated folders
+# Python virtual environments / IDE files
 # -------------------------
-backend_api/uploads/
-backend_api/app/stagingFiles/
+venv/
+.venv/
+backend_api/.venv/
+backend_api/.venv-rvc/
+.idea/
+.vscode/
+backend_api/.idea/
+backend_api/.vscode/
+
+# -------------------------
+# Environment / secrets
+# -------------------------
+.env
+backend_api/.env
+frontend/nepali-voice-ui/.env
+
+# -------------------------
+# Backend uploaded/generated folders
+# Keep the folder with .gitkeep, but ignore generated files
+# -------------------------
+backend_api/uploads/*
+!backend_api/uploads/.gitkeep
+
+backend_api/outputs/*
+!backend_api/outputs/.gitkeep
+
+backend_api/app/stagingFiles/*
+
+# -------------------------
+# Local phrase clip audio
+# Keep the folder with .gitkeep, but ignore actual audio clips
+# -------------------------
+backend_api/phrase_clips/*
+!backend_api/phrase_clips/.gitkeep
+
+# -------------------------
+# Local audio datasets / training data
+# These should stay local and not be committed
+# -------------------------
+backend_api/data/voice_dataset/cleaned_voice_only/
+backend_api/data/voice_dataset/raw_youtube_audio/
+backend_api/data/voice_dataset/exports/
+backend_api/data/voice_dataset/reports/
+backend_api/data/voice_dataset/metadata.csv
+
+# -------------------------
+# Local RVC test/generated files
+# -------------------------
+backend_api/data/rvc_test_inputs/
+backend_api/data/rvc_generated_inputs/
+
+# -------------------------
+# Local trained voice models
+# -------------------------
+backend_api/models/
+*.pth
+*.index
+*.zip
 
 # -------------------------
 # Angular / Node generated folders
@@ -39,27 +86,7 @@ frontend/nepali-voice-ui/coverage/
 frontend/nepali-voice-ui/.vscode/
 
 # -------------------------
-# Optional local env files
+# Package lock files
 # -------------------------
-frontend/nepali-voice-ui/.env
-backend_api/.env
-
-
 backend_api/package-lock.json
 frontend/package-lock.json
-
-# Local trained voice models
-backend_api/models/
-*.pth
-*.index
-*.zip
-# Local RVC test files and generated outputs
-backend_api/data/rvc_test_inputs/
-backend_api/outputs/rvc/
-
-# RVC local virtual environment
-backend_api/.venv-rvc/
-
-# Local RVC generated input files
-backend_api/data/rvc_generated_inputs/
-backend_api/uploads/rvc_generation/

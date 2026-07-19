@@ -6,7 +6,7 @@
 # - it creates the FastAPI app
 # - it configures CORS so Angular can call the backend
 # - it serves static phrase clips from /phrase-clips
-# - it registers route files such as app/routes/audio.py and app/routes/rvc.py
+# - it registers route files such as app/routes/auth.py, audio.py, and rvc.py
 # - it adds basic security response headers
 
 from pathlib import Path
@@ -16,6 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.routes.auth import router as auth_router
 from app.routes.audio import router as audio_router
 from app.routes.rvc import router as rvc_router
 
@@ -84,23 +85,31 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 PHRASE_CLIPS_DIR = BACKEND_ROOT / "phrase_clips"
 PHRASE_CLIPS_DIR.mkdir(parents=True, exist_ok=True)
 
-# This makes phrase clips playable from the browser.
+# Note:
+# This static folder is still public if someone knows the clip URL.
+# The expensive/private API actions are protected by login.
 #
-# Example:
-# http://localhost:8000/phrase-clips/abuiiiAbuiii.m4a
+# Later, if you want phrase clips protected too, replace this static mount
+# with a protected endpoint that returns FileResponse after token validation.
 app.mount(
     "/phrase-clips",
     StaticFiles(directory=str(PHRASE_CLIPS_DIR)),
     name="phrase-clips",
 )
 
-# Register audio endpoints:
+# Public auth endpoint:
+# POST /auth/login
+# GET /auth/me requires token
+app.include_router(auth_router)
+
+# Protected audio endpoints:
 # POST /upload-audio
 # POST /transcribe-audio
 # POST /transcribe-and-match
+# POST /convert-audio-download
 app.include_router(audio_router)
 
-# Register RVC voice generation endpoint:
+# Protected RVC voice generation endpoint:
 # POST /generate-voice
 app.include_router(rvc_router)
 

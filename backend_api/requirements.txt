@@ -15,3 +15,4 @@ openai
 faster-whisper
 rapidfuzz
 av
+PyJWT==2.10.1
