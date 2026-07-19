@@ -53,3 +53,9 @@ backend_api/models/
 *.pth
 *.index
 *.zip
+# Local RVC test files and generated outputs
+backend_api/data/rvc_test_inputs/
+backend_api/outputs/rvc/
+
+# RVC local virtual environment
+backend_api/.venv-rvc/
