@@ -2,20 +2,15 @@
 #
 # Simple private-demo authentication service.
 #
+# Update:
+# AUTH_REQUIRED=false turns off backend login enforcement.
+#
 # Beginner explanation:
-# This file handles:
-# - checking username/password
-# - creating a login token
-# - reading a login token from future requests
-# - blocking protected endpoints when the token is missing/invalid
+# - When AUTH_REQUIRED=true, protected routes require a JWT token.
+# - When AUTH_REQUIRED=false, protected routes allow a guest/demo user.
 #
-# This is similar to Spring Security checking a JWT before allowing
-# access to a controller method.
-#
-# Important:
-# This is good for a private demo.
-# For a real production app with many users, use database-backed users,
-# password hashing, account lockout/rate limiting, and/or a real auth provider.
+# This lets you hide the login screen on the frontend while still keeping the
+# option to turn login back on later.
 
 from __future__ import annotations
 
@@ -29,9 +24,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
-
 load_dotenv()
-
 
 JWT_ALGORITHM = "HS256"
 DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES = 8 * 60
@@ -53,14 +46,29 @@ class LoginResponse(BaseModel):
 
 class AuthenticatedUser(BaseModel):
     username: str
+    authenticated: bool = True
+    auth_mode: str = "jwt"
+
+
+def is_auth_required() -> bool:
+    """
+    Read whether login is required.
+
+    In .env:
+
+    AUTH_REQUIRED=true
+    or
+    AUTH_REQUIRED=false
+    """
+    value = os.getenv("AUTH_REQUIRED", "true").strip().lower()
+    return value not in {"false", "0", "no", "off"}
+
+
+def get_guest_username() -> str:
+    return os.getenv("GUEST_USERNAME", "guest").strip() or "guest"
 
 
 def get_required_env(name: str) -> str:
-    """
-    Read a required environment variable.
-
-    We do not hardcode real passwords or token secrets in source code.
-    """
     value = os.getenv(name)
 
     if not value:
@@ -85,16 +93,9 @@ def get_access_token_expire_minutes() -> int:
 
 
 def create_access_token(username: str) -> tuple[str, int]:
-    """
-    Create a signed JWT access token.
-
-    JWT means:
-    - the backend signs the token
-    - the browser sends it back later
-    - the backend can verify that it created the token
-    """
     jwt_secret_key = get_required_env("JWT_SECRET_KEY")
     expire_minutes = get_access_token_expire_minutes()
+
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
 
     payload = {
@@ -118,11 +119,17 @@ def authenticate_login(username: str, password: str) -> LoginResponse:
     """
     Check username/password from environment variables.
 
-    Environment variables:
-    - APP_LOGIN_USERNAME
-    - APP_LOGIN_PASSWORD
-    - JWT_SECRET_KEY
+    If AUTH_REQUIRED=false, this still returns a lightweight guest response.
+    The frontend will not show the login screen anyway.
     """
+    if not is_auth_required():
+        return LoginResponse(
+            access_token="",
+            token_type="none",
+            expires_in_seconds=0,
+            username=get_guest_username(),
+        )
+
     expected_username = os.getenv("APP_LOGIN_USERNAME", "demo")
     expected_password = get_required_env("APP_LOGIN_PASSWORD")
 
@@ -158,12 +165,20 @@ async def require_authenticated_user(
     """
     Dependency used by protected FastAPI routes.
 
-    If a request does not include:
+    If AUTH_REQUIRED=false:
+    - no token is required
+    - route gets a guest user
 
-      Authorization: Bearer <token>
-
-    or if the token is invalid/expired, the request is rejected.
+    If AUTH_REQUIRED=true:
+    - Authorization: Bearer <token> is required
     """
+    if not is_auth_required():
+        return AuthenticatedUser(
+            username=get_guest_username(),
+            authenticated=False,
+            auth_mode="guest",
+        )
+
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -205,4 +220,8 @@ async def require_authenticated_user(
             detail="Invalid login token.",
         )
 
-    return AuthenticatedUser(username=str(username))
+    return AuthenticatedUser(
+        username=str(username),
+        authenticated=True,
+        auth_mode="jwt",
+    )

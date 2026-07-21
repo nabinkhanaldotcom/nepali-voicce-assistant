@@ -14,15 +14,11 @@
 #   backend_api/.venv-rvc
 #
 # We are keeping them separate because RVC has heavy dependencies like torch,
-# fairseq, rmvpe, faiss, etc. Keeping it separate protects your already-working
-# FastAPI / Whisper backend.
+# fairseq, rmvpe, faiss, etc.
 #
 # This service does NOT import rvc-python directly.
-# Instead, it calls:
-#
-#   backend_api/.venv-rvc/Scripts/python.exe
-#
-# and asks that Python to run:
+# Instead, it calls the separate RVC Python executable and asks that Python
+# to run:
 #
 #   backend_api/rvc_engine/run_rvc_inference.py
 #
@@ -38,6 +34,11 @@
 # - The uploaded file is converted to a clean WAV before RVC.
 # - ffmpeg and RVC subprocess calls have timeouts.
 # - Temporary upload/input files are deleted after processing.
+#
+# Usage metrics notes:
+# - We silently log request metadata.
+# - We do NOT store audio contents in the metrics database.
+# - We do NOT store transcript text in the metrics database.
 
 from __future__ import annotations
 
@@ -45,28 +46,36 @@ import json
 import math
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
 
+from app.services.usage_metrics_service import record_usage_event
+
 
 # backend_api folder
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 
+
 # RVC Python executable.
 #
 # Default Windows path:
-# backend_api/.venv-rvc/Scripts/python.exe
 #
-# You can override this later using an environment variable:
-# RVC_PYTHON_EXE=C:\some\other\python.exe
+#   backend_api/.venv-rvc/Scripts/python.exe
+#
+# On the Azure Linux VM, override this in backend_api/.env:
+#
+#   RVC_PYTHON_EXE=/home/azureuser/apps/nepali-voicce-assistant/backend_api/.venv-rvc/bin/python
 DEFAULT_RVC_PYTHON_EXE = BACKEND_ROOT / ".venv-rvc" / "Scripts" / "python.exe"
 RVC_PYTHON_EXE = Path(os.getenv("RVC_PYTHON_EXE", str(DEFAULT_RVC_PYTHON_EXE)))
 
+
 # RVC wrapper script created in Phase 3B.
 RVC_ENGINE_SCRIPT = BACKEND_ROOT / "rvc_engine" / "run_rvc_inference.py"
+
 
 # Input/output folders.
 RVC_UPLOAD_DIR = BACKEND_ROOT / "uploads" / "rvc_generation"
@@ -77,9 +86,10 @@ RVC_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RVC_WAV_INPUT_DIR.mkdir(parents=True, exist_ok=True)
 RVC_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
 # Current safety limits.
 #
-# Frontend recording limit is 60 seconds.
+# Frontend recording limit is 10 seconds.
 # Backend allows a small buffer because encoded browser audio may be slightly longer.
 MAX_RVC_UPLOAD_BYTES = int(os.getenv("MAX_RVC_UPLOAD_BYTES", str(25 * 1024 * 1024)))
 MAX_RVC_DURATION_SECONDS = float(os.getenv("MAX_RVC_DURATION_SECONDS", "12"))
@@ -88,12 +98,14 @@ FFPROBE_TIMEOUT_SECONDS = int(os.getenv("FFPROBE_TIMEOUT_SECONDS", "15"))
 FFMPEG_TIMEOUT_SECONDS = int(os.getenv("FFMPEG_TIMEOUT_SECONDS", "45"))
 RVC_SUBPROCESS_TIMEOUT_SECONDS = int(os.getenv("RVC_SUBPROCESS_TIMEOUT_SECONDS", "180"))
 
+
 # Audio extensions we accept from Angular or curl.
 #
 # Note:
 # .webm can be audio-only browser recording.
 # .mp4 is intentionally not allowed here to avoid accepting normal video files.
-# If iOS later records as .mp4, we should add it only after testing audio-only ffprobe validation.
+# If iOS later records as .mp4, we should add it only after testing audio-only
+# ffprobe validation.
 SUPPORTED_RVC_INPUT_EXTENSIONS = {
     ".wav",
     ".mp3",
@@ -106,13 +118,16 @@ SUPPORTED_RVC_INPUT_EXTENSIONS = {
     ".flac",
 }
 
+
 # Browser-provided content type is not trusted by itself,
 # but it is still useful as an early reject.
 #
-# Some browsers may use video/webm for MediaRecorder even when the stream is audio-only,
-# so we allow video/webm here but still require ffprobe to prove the file has audio streams only.
+# Some browsers may use video/webm for MediaRecorder even when the stream is
+# audio-only, so we allow video/webm here but still require ffprobe to prove the
+# file has audio streams only.
 #
-# curl may send application/octet-stream, so we allow it here and rely on ffprobe validation.
+# curl may send application/octet-stream, so we allow it here and rely on
+# ffprobe validation.
 SUPPORTED_RVC_CONTENT_TYPES = {
     "audio/wav",
     "audio/x-wav",
@@ -131,6 +146,7 @@ SUPPORTED_RVC_CONTENT_TYPES = {
     "application/octet-stream",
 }
 
+
 SUPPORTED_FFPROBE_FORMATS = {
     "wav",
     "mp3",
@@ -146,6 +162,7 @@ SUPPORTED_FFPROBE_FORMATS = {
     "flac",
     "mpeg",
 }
+
 
 SUPPORTED_RVC_METHODS = {
     "harvest",
@@ -169,6 +186,7 @@ def delete_file_safely(path: Path | str | None) -> None:
 
         if file_path.exists() and file_path.is_file():
             file_path.unlink()
+
     except OSError:
         # Do not expose cleanup errors to the user.
         pass
@@ -245,7 +263,7 @@ def normalize_content_type(content_type: str | None) -> str:
     Normalize content type from browser.
 
     Example:
-      audio/webm;codecs=opus -> audio/webm
+    audio/webm;codecs=opus -> audio/webm
     """
     if not content_type:
         return ""
@@ -359,6 +377,7 @@ def run_ffprobe(audio_path: Path) -> dict[str, Any]:
             text=True,
             timeout=FFPROBE_TIMEOUT_SECONDS,
         )
+
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -367,6 +386,7 @@ def run_ffprobe(audio_path: Path) -> dict[str, Any]:
                 "is available from PowerShell using: ffprobe -version"
             ),
         ) from exc
+
     except subprocess.TimeoutExpired as exc:
         raise HTTPException(
             status_code=400,
@@ -384,12 +404,12 @@ def run_ffprobe(audio_path: Path) -> dict[str, Any]:
 
     try:
         return json.loads(completed_process.stdout)
+
     except json.JSONDecodeError as exc:
         raise HTTPException(
             status_code=400,
             detail="Could not parse audio validation result.",
         ) from exc
-
 
 
 def validate_uploaded_audio_file_before_conversion(audio_path: Path) -> None:
@@ -430,6 +450,7 @@ def validate_uploaded_audio_file_before_conversion(audio_path: Path) -> None:
 
     format_info = probe_result.get("format", {})
     format_name = str(format_info.get("format_name", "")).lower()
+
     format_parts = {
         part.strip()
         for part in format_name.split(",")
@@ -482,6 +503,7 @@ def validate_audio_file_with_ffprobe(audio_path: Path) -> float:
 
     format_info = probe_result.get("format", {})
     format_name = str(format_info.get("format_name", "")).lower()
+
     format_parts = {
         part.strip()
         for part in format_name.split(",")
@@ -498,6 +520,7 @@ def validate_audio_file_with_ffprobe(audio_path: Path) -> float:
 
     try:
         duration_seconds = float(duration_text)
+
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -514,12 +537,39 @@ def validate_audio_file_with_ffprobe(audio_path: Path) -> float:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Audio is too long. Maximum allowed duration is "
+                "Audio is too long. Maximum allowed duration is "
                 f"{MAX_RVC_DURATION_SECONDS:g} seconds."
             ),
         )
 
     return duration_seconds
+
+
+def read_audio_duration_seconds_for_metrics(audio_path: Path | None) -> float | None:
+    """
+    Best-effort duration reader for analytics.
+
+    This should never break the actual RVC request.
+    """
+    if audio_path is None:
+        return None
+
+    if not audio_path.exists():
+        return None
+
+    try:
+        probe_result = run_ffprobe(audio_path)
+        format_info = probe_result.get("format", {})
+        duration_text = str(format_info.get("duration", "")).strip()
+        duration_seconds = float(duration_text)
+
+        if math.isfinite(duration_seconds) and duration_seconds > 0:
+            return duration_seconds
+
+        return None
+
+    except Exception:
+        return None
 
 
 def convert_audio_to_clean_wav(input_path: Path) -> Path:
@@ -564,6 +614,7 @@ def convert_audio_to_clean_wav(input_path: Path) -> Path:
             text=True,
             timeout=FFMPEG_TIMEOUT_SECONDS,
         )
+
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=500,
@@ -572,6 +623,7 @@ def convert_audio_to_clean_wav(input_path: Path) -> Path:
                 "from PowerShell using: ffmpeg -version"
             ),
         ) from exc
+
     except subprocess.TimeoutExpired as exc:
         raise HTTPException(
             status_code=400,
@@ -608,11 +660,13 @@ def run_rvc_wrapper_script(
 
     Important:
     FastAPI does not activate .venv-rvc manually.
-    Instead, it directly calls:
+    Instead, it directly calls the RVC Python executable.
 
+    On Windows:
       backend_api/.venv-rvc/Scripts/python.exe
 
-    That Python already knows about rvc-python.
+    On Azure VM:
+      backend_api/.venv-rvc/bin/python
     """
     validate_existing_file(RVC_PYTHON_EXE, "RVC Python executable")
     validate_existing_file(RVC_ENGINE_SCRIPT, "RVC wrapper script")
@@ -645,6 +699,7 @@ def run_rvc_wrapper_script(
             text=True,
             timeout=RVC_SUBPROCESS_TIMEOUT_SECONDS,
         )
+
     except subprocess.TimeoutExpired as exc:
         raise HTTPException(
             status_code=500,
@@ -679,42 +734,54 @@ async def generate_voice_with_rvc(
     index_rate: float = 0.75,
     protect: float = 0.5,
     method: str = "rmvpe",
-) -> Path:
+    request_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Main service function used by the FastAPI route.
 
     Full flow:
     1. Validate RVC settings
     2. Save uploaded audio with a safe generated filename
-    3. Validate the uploaded file with ffprobe
-    4. Convert it to clean WAV
-    5. Validate the clean WAV
-    6. Run RVC wrapper script
-    7. Return path to generated WAV
+    3. Validate uploaded stream/container
+    4. Convert to clean WAV
+    5. Validate clean WAV duration
+    6. Run RVC
+    7. Record usage metadata
     8. Delete temporary upload/input files
+
+    Important:
+    The generated output file is NOT deleted here.
+    The route returns it with FileResponse and deletes it after sending.
     """
+    started_at = time.perf_counter()
+
     uploaded_audio_path: Path | None = None
     wav_input_path: Path | None = None
-
-    normalized_method = normalize_rvc_method(method)
-
-    validate_rvc_settings(
-        pitch=pitch,
-        index_rate=index_rate,
-        protect=protect,
-    )
+    duration_seconds: float | None = None
+    uploaded_file_size_bytes: int | None = None
+    generated_audio_path: Path | None = None
+    output_bytes: int | None = None
+    normalized_method = method or "rmvpe"
 
     try:
+        normalized_method = normalize_rvc_method(method)
+
+        validate_rvc_settings(
+            pitch=pitch,
+            index_rate=index_rate,
+            protect=protect,
+        )
+
         uploaded_audio_path = await save_rvc_upload(file)
 
-        # Mobile WebKit/Safari WebM recordings can be valid audio but report
-        # Duration: N/A before conversion. So first validate only stream/container,
-        # then do strict duration validation after ffmpeg creates a clean WAV.
+        if uploaded_audio_path.exists():
+            uploaded_file_size_bytes = uploaded_audio_path.stat().st_size
+
         validate_uploaded_audio_file_before_conversion(uploaded_audio_path)
 
         wav_input_path = convert_audio_to_clean_wav(uploaded_audio_path)
 
-        validate_audio_file_with_ffprobe(wav_input_path)
+        duration_seconds = validate_audio_file_with_ffprobe(wav_input_path)
 
         generated_audio_path = run_rvc_wrapper_script(
             wav_input_path=wav_input_path,
@@ -724,7 +791,91 @@ async def generate_voice_with_rvc(
             method=normalized_method,
         )
 
-        return generated_audio_path
+        if generated_audio_path.exists():
+            output_bytes = generated_audio_path.stat().st_size
+
+        processing_ms = int((time.perf_counter() - started_at) * 1000)
+
+        record_usage_event(
+            endpoint="/generate-voice",
+            action="rvc_generate",
+            success=True,
+            status_code=200,
+            request_context=request_context,
+            original_filename=file.filename,
+            content_type=file.content_type,
+            upload_bytes=uploaded_file_size_bytes,
+            duration_seconds=duration_seconds,
+            rvc_pitch=pitch,
+            rvc_index_rate=index_rate,
+            rvc_protect=protect,
+            rvc_method=normalized_method,
+            output_bytes=output_bytes,
+            processing_ms=processing_ms,
+        )
+
+        return {
+            "generatedAudioPath": generated_audio_path,
+            "durationSeconds": duration_seconds,
+            "uploadBytes": uploaded_file_size_bytes,
+            "outputBytes": output_bytes,
+            "method": normalized_method,
+        }
+
+    except HTTPException as exc:
+        if duration_seconds is None:
+            duration_seconds = read_audio_duration_seconds_for_metrics(wav_input_path)
+
+        processing_ms = int((time.perf_counter() - started_at) * 1000)
+
+        record_usage_event(
+            endpoint="/generate-voice",
+            action="rvc_generate",
+            success=False,
+            status_code=exc.status_code,
+            error_message=str(exc.detail),
+            request_context=request_context,
+            original_filename=file.filename,
+            content_type=file.content_type,
+            upload_bytes=uploaded_file_size_bytes,
+            duration_seconds=duration_seconds,
+            rvc_pitch=pitch,
+            rvc_index_rate=index_rate,
+            rvc_protect=protect,
+            rvc_method=normalized_method,
+            output_bytes=output_bytes,
+            processing_ms=processing_ms,
+        )
+
+        raise
+
+    except Exception as exc:
+        if duration_seconds is None:
+            duration_seconds = read_audio_duration_seconds_for_metrics(wav_input_path)
+
+        processing_ms = int((time.perf_counter() - started_at) * 1000)
+
+        record_usage_event(
+            endpoint="/generate-voice",
+            action="rvc_generate",
+            success=False,
+            status_code=500,
+            error_message=str(exc),
+            request_context=request_context,
+            original_filename=file.filename,
+            content_type=file.content_type,
+            upload_bytes=uploaded_file_size_bytes,
+            duration_seconds=duration_seconds,
+            rvc_pitch=pitch,
+            rvc_index_rate=index_rate,
+            rvc_protect=protect,
+            rvc_method=normalized_method,
+            output_bytes=output_bytes,
+            processing_ms=processing_ms,
+        )
+
+        raise
+
     finally:
         delete_file_safely(uploaded_audio_path)
         delete_file_safely(wav_input_path)

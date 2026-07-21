@@ -2,15 +2,8 @@
 #
 # Login routes.
 #
-# Beginner explanation:
-# This file is like an AuthController in Spring.
-#
-# Angular will call:
-#
-#   POST /auth/login
-#
-# If username/password are valid, FastAPI returns a token.
-# Angular then sends that token with future backend requests.
+# Even when the frontend login screen is hidden, keeping these endpoints is useful
+# because you can turn AUTH_REQUIRED=true later without rebuilding the whole app.
 
 from fastapi import APIRouter, Depends
 
@@ -19,32 +12,29 @@ from app.services.auth_service import (
     LoginRequest,
     LoginResponse,
     authenticate_login,
+    get_guest_username,
+    is_auth_required,
     require_authenticated_user,
 )
-
 
 router = APIRouter()
 
 
+@router.get("/auth/config")
+async def auth_config():
+    """
+    Frontend can call this later if you want a dynamic login toggle.
+
+    Current frontend below does not need this, because we are fully hiding login.
+    """
+    return {
+        "authRequired": is_auth_required(),
+        "guestUsername": get_guest_username(),
+    }
+
+
 @router.post("/auth/login", response_model=LoginResponse)
 async def login(login_request: LoginRequest):
-    """
-    Login with username/password.
-
-    Request JSON:
-    {
-      "username": "demo",
-      "password": "your-password"
-    }
-
-    Response:
-    {
-      "access_token": "...",
-      "token_type": "bearer",
-      "expires_in_seconds": 28800,
-      "username": "demo"
-    }
-    """
     return authenticate_login(
         username=login_request.username,
         password=login_request.password,
@@ -55,10 +45,8 @@ async def login(login_request: LoginRequest):
 async def get_current_user(
     current_user: AuthenticatedUser = Depends(require_authenticated_user),
 ):
-    """
-    Verify that the current login token is still valid.
-    """
     return {
         "username": current_user.username,
-        "authenticated": True,
+        "authenticated": current_user.authenticated,
+        "authMode": current_user.auth_mode,
     }

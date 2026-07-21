@@ -1,75 +1,79 @@
 # backend_api/app/routes/rvc.py
 #
-# Phase 3C / security update - RVC voice generation route
+# RVC voice generation route.
 #
-# Beginner explanation:
-# This route is like a Spring Controller endpoint.
-#
-# Angular calls:
-#
-#   POST /generate-voice
-#
-# with one audio file.
-#
-# This route:
-# - requires login
-# - requires exactly one uploaded file
-# - rejects multiple uploaded files
-# - receives RVC settings like pitch/indexRate/protect/method
-# - calls rvc_generation_service
-# - returns generated WAV audio to the browser
-# - deletes the generated server-side output file after sending it
+# Login can be turned off with AUTH_REQUIRED=false.
+# Usage metrics are recorded silently on the backend.
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
-from app.services.auth_service import require_authenticated_user
+from app.services.auth_service import AuthenticatedUser, require_authenticated_user
 from app.services.rvc_generation_service import (
     delete_file_safely,
     generate_voice_with_rvc,
 )
-
-
-router = APIRouter(
-    dependencies=[Depends(require_authenticated_user)]
+from app.services.usage_metrics_service import (
+    build_request_usage_context,
+    record_usage_event,
 )
+
+router = APIRouter()
 
 
 @router.post("/generate-voice")
 async def generate_voice(
+    request: Request,
     files: list[UploadFile] = File(..., alias="file"),
     pitch: int = Form(6),
     indexRate: float = Form(0.75),
     protect: float = Form(0.5),
     method: str = Form("rmvpe"),
+    current_user: AuthenticatedUser = Depends(require_authenticated_user),
 ):
-    """
-    Generate Artist's Voice using the local RVC model.
+    request_context = build_request_usage_context(
+        request=request,
+        username=current_user.username,
+    )
 
-    Form fields:
-    - file: exactly one uploaded audio file
-    - pitch: semitone shift. Try 0, 4, 6, 8, 10.
-    - indexRate: search feature ratio. Good default: 0.75.
-    - protect: protect voiceless consonants/breath sounds. Good default: 0.5.
-    - method: pitch extraction method. Good default: rmvpe.
-
-    Returns:
-    - generated WAV audio file
-    """
     if len(files) != 1:
+        record_usage_event(
+            endpoint="/generate-voice",
+            action="rvc_generate",
+            success=False,
+            status_code=400,
+            error_message="Exactly one audio file must be uploaded.",
+            request_context=request_context,
+            rvc_pitch=pitch,
+            rvc_index_rate=indexRate,
+            rvc_protect=protect,
+            rvc_method=method,
+        )
+
         raise HTTPException(
             status_code=400,
             detail="Exactly one audio file must be uploaded.",
         )
 
-    generated_audio_path = await generate_voice_with_rvc(
+    generated_result: Any = await generate_voice_with_rvc(
         file=files[0],
         pitch=pitch,
         index_rate=indexRate,
         protect=protect,
         method=method,
+        request_context=request_context,
     )
+
+    if isinstance(generated_result, dict):
+        generated_audio_path = Path(generated_result["generatedAudioPath"])
+    else:
+        generated_audio_path = Path(generated_result)
 
     return FileResponse(
         path=str(generated_audio_path),
