@@ -82,7 +82,7 @@ RVC_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # Frontend recording limit is 60 seconds.
 # Backend allows a small buffer because encoded browser audio may be slightly longer.
 MAX_RVC_UPLOAD_BYTES = int(os.getenv("MAX_RVC_UPLOAD_BYTES", str(25 * 1024 * 1024)))
-MAX_RVC_DURATION_SECONDS = float(os.getenv("MAX_RVC_DURATION_SECONDS", "65"))
+MAX_RVC_DURATION_SECONDS = float(os.getenv("MAX_RVC_DURATION_SECONDS", "12"))
 
 FFPROBE_TIMEOUT_SECONDS = int(os.getenv("FFPROBE_TIMEOUT_SECONDS", "15"))
 FFMPEG_TIMEOUT_SECONDS = int(os.getenv("FFMPEG_TIMEOUT_SECONDS", "45"))

@@ -53,7 +53,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   // -----------------------------
   // Recording limits
   // -----------------------------
-  readonly maxRecordingSeconds = 60;
+  readonly maxRecordingSeconds = 10;
 
   recordingElapsedSeconds = 0;
   recordingRemainingSeconds = this.maxRecordingSeconds;
