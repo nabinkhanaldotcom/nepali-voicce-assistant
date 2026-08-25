@@ -102,7 +102,7 @@ export class VoiceConsoleComponent implements OnDestroy {
   // RVC voice generation settings
   // -----------------------------
   // These defaults match the settings that worked from PowerShell.
-  rvcPitch = 6;
+  rvcPitch = 12;
   rvcIndexRate = 0.75;
   rvcProtect = 0.5;
   rvcMethod: RvcPitchMethod = 'rmvpe';

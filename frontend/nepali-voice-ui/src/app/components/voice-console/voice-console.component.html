@@ -11,19 +11,12 @@
     <h3>1. Choose Audio Source</h3>
 
     <div class="button-row">
-      <button
-        type="button"
-        (click)="startRecording()"
-        [disabled]="isRecording || isPreparingRecording || isProcessing || isGeneratingVoice"
-      >
+      <button type="button" (click)="startRecording()"
+        [disabled]="isRecording || isPreparingRecording || isProcessing || isGeneratingVoice">
         Start Recording
       </button>
 
-      <button
-        type="button"
-        (click)="stopRecording()"
-        [disabled]="!isRecording"
-      >
+      <button type="button" (click)="stopRecording()" [disabled]="!isRecording">
         Stop Recording
       </button>
     </div>
@@ -43,13 +36,9 @@
     <div class="file-picker">
       <label for="audioFileInput">Or choose one audio file:</label>
 
-      <input
-        id="audioFileInput"
-        type="file"
-        accept="audio/*,.wav,.mp3,.m4a,.weba,.webm,.ogg,.mpeg,.mpga,.flac"
+      <input id="audioFileInput" type="file" accept="audio/*,.wav,.mp3,.m4a,.weba,.webm,.ogg,.mpeg,.mpga,.flac"
         (change)="onFileSelected($event)"
-        [disabled]="isRecording || isPreparingRecording || isProcessing || isGeneratingVoice"
-      />
+        [disabled]="isRecording || isPreparingRecording || isProcessing || isGeneratingVoice" />
     </div>
 
     <div *ngIf="selectedInputType" class="info-grid selected-audio-info">
@@ -64,22 +53,11 @@
         <strong>Audio preview:</strong>
       </p>
 
-      <audio
-        #previewAudioElement
-        [src]="recordedAudioUrl"
-        preload="metadata"
-        (loadedmetadata)="onPreviewLoaded()"
-        (timeupdate)="onPreviewTimeUpdate()"
-        (ended)="onPreviewEnded()"
-      ></audio>
+      <audio #previewAudioElement [src]="recordedAudioUrl" preload="metadata" (loadedmetadata)="onPreviewLoaded()"
+        (timeupdate)="onPreviewTimeUpdate()" (ended)="onPreviewEnded()"></audio>
 
       <div class="custom-audio-player">
-        <button
-          type="button"
-          class="audio-icon-button"
-          title="Play or pause"
-          (click)="togglePreviewPlayback()"
-        >
+        <button type="button" class="audio-icon-button" title="Play or pause" (click)="togglePreviewPlayback()">
           {{ isPreviewPlaying ? '❚❚' : '▶' }}
         </button>
 
@@ -87,37 +65,17 @@
           {{ formatAudioTime(previewCurrentTime) }} / {{ formatAudioTime(previewDuration) }}
         </span>
 
-        <input
-          class="audio-seek"
-          type="range"
-          min="0"
-          [max]="previewDuration || 0"
-          step="0.1"
-          [value]="previewCurrentTime"
-          (input)="seekPreviewAudio($event)"
-        />
+        <input class="audio-seek" type="range" min="0" [max]="previewDuration || 0" step="0.1"
+          [value]="previewCurrentTime" (input)="seekPreviewAudio($event)" />
 
-        <button
-          type="button"
-          class="audio-icon-button more-menu-button"
-          title="Audio actions"
-          (click)="togglePreviewMenu($event)"
-          [disabled]="isDownloadingAudio"
-        >
+        <button type="button" class="audio-icon-button more-menu-button" title="Audio actions"
+          (click)="togglePreviewMenu($event)" [disabled]="isDownloadingAudio">
           ⋮
         </button>
 
-        <div
-          class="preview-menu"
-          *ngIf="previewMenuOpen"
-          (click)="$event.stopPropagation()"
-        >
-          <button
-            type="button"
-            class="preview-menu-item"
-            (click)="downloadPreviewAudio()"
-            [disabled]="!lastAudioBlob || isDownloadingAudio"
-          >
+        <div class="preview-menu" *ngIf="previewMenuOpen" (click)="$event.stopPropagation()">
+          <button type="button" class="preview-menu-item" (click)="downloadPreviewAudio()"
+            [disabled]="!lastAudioBlob || isDownloadingAudio">
             Download Preview Audio
           </button>
 
@@ -127,24 +85,15 @@
             </p>
 
             <div class="speed-options">
-              <button
-                type="button"
-                class="speed-option"
-                *ngFor="let speed of playbackSpeedOptions"
-                (click)="setPreviewPlaybackSpeed(speed)"
-                [class.active]="previewPlaybackSpeed === speed"
-              >
+              <button type="button" class="speed-option" *ngFor="let speed of playbackSpeedOptions"
+                (click)="setPreviewPlaybackSpeed(speed)" [class.active]="previewPlaybackSpeed === speed">
                 {{ speed }}x
               </button>
             </div>
           </div>
 
-          <button
-            type="button"
-            class="preview-menu-item danger-menu-item"
-            (click)="clearSelectedAudio()"
-            [disabled]="isProcessing || isGeneratingVoice || isDownloadingAudio"
-          >
+          <button type="button" class="preview-menu-item danger-menu-item" (click)="clearSelectedAudio()"
+            [disabled]="isProcessing || isGeneratingVoice || isDownloadingAudio">
             Clear Selected Audio
           </button>
         </div>
@@ -155,12 +104,8 @@
           Download format:
         </label>
 
-        <select
-          id="downloadFormat"
-          class="download-format-select"
-          [(ngModel)]="selectedDownloadFormat"
-          [disabled]="isDownloadingAudio"
-        >
+        <select id="downloadFormat" class="download-format-select" [(ngModel)]="selectedDownloadFormat"
+          [disabled]="isDownloadingAudio">
           <option value="weba">WEBA</option>
           <option value="wav">WAV</option>
           <option value="mp3">MP3</option>
@@ -185,11 +130,7 @@
       <label for="provider">
         Provider
 
-        <select
-          id="provider"
-          [(ngModel)]="selectedProvider"
-          [disabled]="isProcessing || isGeneratingVoice"
-        >
+        <select id="provider" [(ngModel)]="selectedProvider" [disabled]="isProcessing || isGeneratingVoice">
           <option value="local_whisper">Local Whisper</option>
           <option value="openai_whisper">OpenAI Whisper</option>
         </select>
@@ -198,11 +139,8 @@
       <label for="openAiModel">
         OpenAI model
 
-        <select
-          id="openAiModel"
-          [(ngModel)]="selectedOpenAiModel"
-          [disabled]="isProcessing || isGeneratingVoice || selectedProvider !== 'openai_whisper'"
-        >
+        <select id="openAiModel" [(ngModel)]="selectedOpenAiModel"
+          [disabled]="isProcessing || isGeneratingVoice || selectedProvider !== 'openai_whisper'">
           <option value="gpt-4o-mini-transcribe">
             gpt-4o-mini-transcribe
           </option>
@@ -216,11 +154,7 @@
       <label for="tonePreset">
         Tone preset
 
-        <select
-          id="tonePreset"
-          [(ngModel)]="selectedTonePreset"
-          [disabled]="isProcessing || isGeneratingVoice"
-        >
+        <select id="tonePreset" [(ngModel)]="selectedTonePreset" [disabled]="isProcessing || isGeneratingVoice">
           <option value="original">original</option>
           <option value="happy">happy</option>
           <option value="sad">sad</option>
@@ -242,25 +176,14 @@
       <label for="rvcPitch">
         Pitch
 
-        <input
-          id="rvcPitch"
-          type="number"
-          min="-24"
-          max="24"
-          step="1"
-          [(ngModel)]="rvcPitch"
-          [disabled]="isGeneratingVoice"
-        />
+        <input id="rvcPitch" type="number" min="-24" max="24" step="1" [(ngModel)]="rvcPitch"
+          [disabled]="isGeneratingVoice" />
       </label>
 
       <label for="rvcMethod">
         Pitch extraction
 
-        <select
-          id="rvcMethod"
-          [(ngModel)]="rvcMethod"
-          [disabled]="isGeneratingVoice"
-        >
+        <select id="rvcMethod" [(ngModel)]="rvcMethod" [disabled]="isGeneratingVoice">
           <option value="rmvpe">rmvpe</option>
           <option value="harvest">harvest</option>
           <option value="crepe">crepe</option>
@@ -271,35 +194,21 @@
       <label for="rvcIndexRate">
         Search feature ratio
 
-        <input
-          id="rvcIndexRate"
-          type="number"
-          min="0"
-          max="1"
-          step="0.05"
-          [(ngModel)]="rvcIndexRate"
-          [disabled]="isGeneratingVoice"
-        />
+        <input id="rvcIndexRate" type="number" min="0" max="1" step="0.05" [(ngModel)]="rvcIndexRate"
+          [disabled]="isGeneratingVoice" />
       </label>
 
       <label for="rvcProtect">
         Protect voiceless consonants
 
-        <input
-          id="rvcProtect"
-          type="number"
-          min="0"
-          max="1"
-          step="0.05"
-          [(ngModel)]="rvcProtect"
-          [disabled]="isGeneratingVoice"
-        />
+        <input id="rvcProtect" type="number" min="0" max="1" step="0.05" [(ngModel)]="rvcProtect"
+          [disabled]="isGeneratingVoice" />
       </label>
     </div>
 
     <p class="hint">
-      Current recommended defaults: pitch 6, rmvpe, search feature ratio 0.75, protect 0.5.
-      Try pitch 0, 4, 6, 8, or 10 to compare results.
+      Current recommended defaults: pitch 12, rmvpe, search feature ratio 0.75, protect 0.5.
+      You can adjust the pitch if you want to compare how different values affect the converted voice.
     </p>
   </section>
 
@@ -307,20 +216,12 @@
     <h3>4. Actions</h3>
 
     <div class="button-row">
-      <button
-        type="button"
-        (click)="sendToBackend()"
-        [disabled]="!lastAudioBlob || isProcessing || isGeneratingVoice"
-      >
+      <button type="button" (click)="sendToBackend()" [disabled]="!lastAudioBlob || isProcessing || isGeneratingVoice">
         Transcribe + Match Phrase
       </button>
 
-      <button
-        type="button"
-        class="primary-action"
-        (click)="generateArtistVoice()"
-        [disabled]="!lastAudioBlob || isProcessing || isGeneratingVoice"
-      >
+      <button type="button" class="primary-action" (click)="generateArtistVoice()"
+        [disabled]="!lastAudioBlob || isProcessing || isGeneratingVoice">
         Generate Artist's Voice
       </button>
     </div>
@@ -330,7 +231,8 @@
     </p>
 
     <p *ngIf="isGeneratingVoice" class="status">
-      Generating Artist's Voice...
+      Generating Artist's Voice... This service runs on a budget-friendly CPU server, so processing may take a little
+      while. Please keep this page open.
     </p>
   </section>
 
@@ -342,18 +244,10 @@
         <strong>Generated Artist's Voice is ready.</strong>
       </p>
 
-      <audio
-        class="generated-audio-player"
-        [src]="generatedVoiceUrl"
-        controls
-      ></audio>
+      <audio class="generated-audio-player" [src]="generatedVoiceUrl" controls></audio>
 
       <div class="button-row generated-actions">
-        <button
-          type="button"
-          (click)="downloadGeneratedVoice()"
-          [disabled]="!generatedVoiceBlob || isDownloadingAudio"
-        >
+        <button type="button" (click)="downloadGeneratedVoice()" [disabled]="!generatedVoiceBlob || isDownloadingAudio">
           Download Generated Artist's Voice as {{ generatedVoiceDownloadFormatLabel }}
         </button>
       </div>
@@ -413,10 +307,7 @@
       <strong>Recognized Text:</strong>
     </p>
 
-    <textarea
-      readonly
-      [value]="recognizedText || 'N/A'"
-    ></textarea>
+    <textarea readonly [value]="recognizedText || 'N/A'"></textarea>
 
     <div class="info-grid">
       <p>
@@ -466,38 +357,22 @@
       </p>
     </div>
 
-    <div
-      *ngIf="matchedClipUrl"
-      class="button-row match-actions"
-    >
-      <button
-        type="button"
-        (click)="playMatchedClip()"
-      >
+    <div *ngIf="matchedClipUrl" class="button-row match-actions">
+      <button type="button" (click)="playMatchedClip()">
         Play Match Clip
       </button>
 
-      <button
-        type="button"
-        (click)="downloadMatchedClip()"
-        [disabled]="isDownloadingAudio"
-      >
+      <button type="button" (click)="downloadMatchedClip()" [disabled]="isDownloadingAudio">
         Download Match Clip as {{ selectedDownloadFormat | uppercase }}
       </button>
     </div>
 
-    <p
-      *ngIf="matchedClip && !matchedClipUrl"
-      class="warning"
-    >
+    <p *ngIf="matchedClip && !matchedClipUrl" class="warning">
       A phrase alias matched, but the clip file was not found in backend_api/phrase_clips.
     </p>
   </section>
 
-  <p
-    *ngIf="errorMessage"
-    class="error"
-  >
+  <p *ngIf="errorMessage" class="error">
     ⚠️ {{ errorMessage }}
   </p>
 </div>

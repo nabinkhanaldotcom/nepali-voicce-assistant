@@ -1,1 +1,388 @@
-/* You can add global styles to this file, and also import other style files */
+/* frontend/nepali-voice-ui/src/app/app.component.scss */
+
+/*
+ * ============================================================
+ * APPLICATION SHELL
+ * ============================================================
+ */
+
+:host {
+  display: block;
+  min-height: 100vh;
+  background-color: var(--color-background);
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+
+/*
+ * ============================================================
+ * PORTFOLIO-STYLE HEADER
+ * ============================================================
+ *
+ * This intentionally follows the same visual structure used by
+ * the Portfolio application's header so the Voice Conversion
+ * project feels like part of the same website.
+ */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  width: 100%;
+
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: min(100% - 2rem, var(--page-max-width));
+  min-height: var(--header-height);
+
+  margin: 0 auto;
+}
+
+
+/*
+ * ============================================================
+ * BRAND / NAME
+ * ============================================================
+ */
+
+.brand {
+  color: var(--color-text-primary);
+
+  font-size: 1.1rem;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+
+/*
+ * ============================================================
+ * DESKTOP NAVIGATION
+ * ============================================================
+ */
+
+.navigation {
+  display: flex;
+  align-items: center;
+
+  gap: 2rem;
+}
+
+.navigation a {
+  position: relative;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.95rem;
+  font-weight: 500;
+
+  text-decoration: none;
+
+  transition:
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.navigation a:hover,
+.navigation a:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.navigation a::after {
+  content: '';
+
+  position: absolute;
+
+  left: 0;
+  bottom: -0.4rem;
+
+  width: 100%;
+  height: 2px;
+
+  background-color: var(--color-accent);
+
+  transform: scaleX(0);
+  transform-origin: center;
+
+  transition: transform 150ms ease;
+}
+
+.navigation a:hover::after,
+.navigation a:focus-visible::after {
+  transform: scaleX(1);
+}
+
+
+/*
+ * ============================================================
+ * MOBILE MENU BUTTON
+ * ============================================================
+ */
+
+.menu-button {
+  display: none;
+
+  width: 2.75rem;
+  height: 2.75rem;
+
+  padding: 0;
+
+  background: transparent;
+  border: 0;
+
+  cursor: pointer;
+}
+
+.menu-icon {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  gap: 5px;
+
+  width: 24px;
+
+  margin: 0 auto;
+}
+
+.menu-icon span {
+  display: block;
+
+  width: 100%;
+  height: 2px;
+
+  background-color: var(--color-text-primary);
+
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
+}
+
+.menu-icon-open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.menu-icon-open span:nth-child(2) {
+  opacity: 0;
+}
+
+.menu-icon-open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+
+/*
+ * ============================================================
+ * VOICE PAGE
+ * ============================================================
+ */
+
+.voice-page {
+  width: min(100% - 2rem, var(--page-max-width));
+
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+
+/*
+ * ============================================================
+ * DEMO INSTRUCTIONS
+ * ============================================================
+ */
+
+.demo-guide {
+  width: min(100%, 920px);
+
+  margin: 0 auto 1.5rem;
+  padding: 1.5rem;
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+.demo-guide-heading {
+  margin-bottom: 1.5rem;
+}
+
+.demo-label {
+  margin: 0 0 0.5rem;
+
+  color: var(--color-accent);
+
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  letter-spacing: 0.12em;
+}
+
+.demo-guide h1 {
+  margin: 0;
+
+  color: var(--color-text-primary);
+
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+}
+
+.demo-introduction {
+  max-width: 760px;
+
+  margin: 0.75rem 0 0;
+
+  color: var(--color-text-secondary);
+
+  line-height: 1.7;
+}
+
+.demo-steps {
+  display: grid;
+
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  gap: 1rem;
+}
+
+.demo-step {
+  display: flex;
+
+  gap: 0.8rem;
+
+  padding: 1rem;
+
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.step-number {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+
+  width: 2rem;
+  height: 2rem;
+
+  color: #0f172a;
+  background-color: var(--color-accent);
+  border-radius: 50%;
+
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.demo-step h2 {
+  margin: 0 0 0.4rem;
+
+  color: var(--color-text-primary);
+
+  font-size: 1rem;
+}
+
+.demo-step p {
+  margin: 0;
+
+  color: var(--color-text-secondary);
+
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.server-note {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+
+  color: var(--color-text-secondary);
+  background-color: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 12px;
+
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.server-note strong {
+  color: var(--color-text-primary);
+}
+
+
+/*
+ * ============================================================
+ * TABLET / MOBILE
+ * ============================================================
+ */
+
+@media (max-width: 900px) {
+  .demo-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-container {
+    position: relative;
+  }
+
+  .menu-button {
+    display: block;
+  }
+
+  .navigation {
+    display: none;
+
+    position: absolute;
+
+    top: 100%;
+    left: -1rem;
+    right: -1rem;
+
+    flex-direction: column;
+    align-items: stretch;
+
+    gap: 0;
+
+    padding: 1rem;
+
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .navigation.navigation-open {
+    display: flex;
+  }
+
+  .navigation a {
+    width: 100%;
+
+    padding: 1rem;
+
+    text-align: left;
+  }
+
+  .navigation a::after {
+    display: none;
+  }
+
+  .voice-page {
+    padding-top: 1rem;
+  }
+
+  .demo-guide {
+    padding: 1.25rem;
+  }
+}

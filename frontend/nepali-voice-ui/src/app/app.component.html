@@ -1,7 +1,121 @@
 <div class="app-shell">
-  <header class="app-header">
-    <h1>Artist's Voice Console</h1>
+  <header class="site-header">
+    <div class="header-container">
+      <!--
+        This Voice Conversion application is a separate Angular application
+        from the Portfolio.
+
+        Because of that, these links use absolute portfolio URLs instead of
+        same-page anchors such as #about.
+      -->
+      <a
+        class="brand"
+        href="/"
+        aria-label="Nabin Khanal - return to portfolio"
+        (click)="closeMenu()"
+      >
+        Nabin Khanal
+      </a>
+
+      <nav
+        class="navigation"
+        [class.navigation-open]="menuOpen()"
+        aria-label="Main navigation"
+      >
+        <a href="/#about" (click)="closeMenu()">About</a>
+
+        <a href="/#projects" (click)="closeMenu()">Projects</a>
+
+        <a href="/#contact" (click)="closeMenu()">Contact</a>
+      </nav>
+
+      <!-- Mobile navigation button -->
+      <button
+        class="menu-button"
+        type="button"
+        (click)="toggleMenu()"
+        [attr.aria-expanded]="menuOpen()"
+        [attr.aria-label]="
+          menuOpen() ? 'Close navigation menu' : 'Open navigation menu'
+        "
+      >
+        <span
+          class="menu-icon"
+          [class.menu-icon-open]="menuOpen()"
+          aria-hidden="true"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+    </div>
   </header>
 
-  <app-voice-console></app-voice-console>
+  <main class="voice-page">
+    <section class="demo-guide" aria-labelledby="demo-guide-title">
+      <div class="demo-guide-heading">
+        <p class="demo-label">VOICE CONVERSION DEMO</p>
+
+        <h1 id="demo-guide-title">Try the Artist Voice Conversion</h1>
+
+        <p class="demo-introduction">
+          You do not need to know the artist or say a specific phrase to try
+          this application. Simply record a short sample in your own voice or upload
+          an audio file and let the trained voice-conversion model transform it.
+        </p>
+      </div>
+
+      <div class="demo-steps">
+        <div class="demo-step">
+          <span class="step-number">1</span>
+
+          <div>
+            <h2>Record or upload audio</h2>
+
+            <p>
+              Record a few seconds of yourself speaking, or upload an existing
+              audio file (max length - 10seconds).
+            </p>
+          </div>
+        </div>
+
+        <div class="demo-step">
+          <span class="step-number">2</span>
+
+          <div>
+            <h2>Click Generate Artist's Voice</h2>
+
+            <p>
+              You can preview your recording first if you want. When you are
+              ready, click <strong>Generate Artist's Voice</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="demo-step">
+          <span class="step-number">3</span>
+
+          <div>
+            <h2>Wait for the converted voice</h2>
+
+            <p>
+              Keep this page open while the server processes your recording.
+              When processing finishes, you can listen to the generated voice.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="server-note">
+        <strong>Please note:</strong>
+        This project is hosted on a budget-friendly CPU virtual machine to keep
+        things affordable. Voice generation may therefore take a little while,
+        especially when the server is busy. Thanks for your patience while the
+        audio is being processed.
+      </div>
+    </section>
+
+    <app-voice-console></app-voice-console>
+  </main>
 </div>
