@@ -31,7 +31,7 @@ router = APIRouter()
 async def generate_voice(
     request: Request,
     files: list[UploadFile] = File(..., alias="file"),
-    pitch: int = Form(6),
+    pitch: int = Form(12),
     indexRate: float = Form(0.75),
     protect: float = Form(0.5),
     method: str = Form("rmvpe"),

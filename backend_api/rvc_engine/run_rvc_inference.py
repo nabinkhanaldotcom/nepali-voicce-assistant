@@ -100,8 +100,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--pitch",
         type=int,
-        default=6,
-        help="Pitch shift in semitones. Try 0, 4, 6, 8, or 10.",
+        default=12,
+        help="Pitch shift in semitones. Try 0, 4, 6, 8, 10, 12, 14, or even 17.",
     )
 
     parser.add_argument(

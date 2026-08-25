@@ -730,7 +730,7 @@ def run_rvc_wrapper_script(
 
 async def generate_voice_with_rvc(
     file: UploadFile,
-    pitch: int = 6,
+    pitch: int = 12,
     index_rate: float = 0.75,
     protect: float = 0.5,
     method: str = "rmvpe",
